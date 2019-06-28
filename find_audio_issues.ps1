@@ -13,19 +13,29 @@ ForEach ($file in $allFiles) {
     $audioIssues = $audioFormats | Where-Object { $problomaticAudioFormats -contains $_ };
     if ($audioIssues.Length -eq 0) {
         Write-Host "No audio or audio issues found. Skipping file: '$file'"
+        Write-Host "-------------------------"
         continue;
     }
 
     # Note: Everything going foward has some audio issues.
     if ($audioFormats.Length -eq 1) {
-        Write-Host "Trying to automaticaaly fix: '$file'"
+        Write-Host "Trying to automaticaly fix: '$file'"
         $newFileName = Join-Path $file.DirectoryName "$($file.BaseName)-1$($file.Extension)"
-        $transcodeAudioOutput = (ffmpeg -i "$file" -map 0 -c:v copy -c:a aac -c:s copy "$newFileName") | Out-String;
-
-        #Remove-Item -Path $file -Force
-        #Rename-Item -Path $file -NewName $file.Name
+        $transcodeAudioOutput = ffmpeg -y -i "$file" -map 0 -c:v copy -c:a aac -c:s copy "$newFileName"
+        
+        if ($LASTEXITCODE) {
+            Write-Host "Failed to automatically resolve the issue with file: '$file'" 
+            Remove-Item -Path $newFileName -Force
+        }
+        else {
+            Remove-Item -Path $file -Force
+            Rename-Item -Path $newFileName -NewName $file.Name
+            Write-Host "File has been fixed."
+        }
     }
     else {
         Write-Host "User intervention is required. File: '$file'"
     }
+
+    Write-Host "-------------------------"
 }

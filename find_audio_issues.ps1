@@ -1,11 +1,11 @@
-# Variables
 $locationToSearch = "/media";
 $problematicAudioFormats = @("TrueHD", "E-AC-3")
 
-# Logic
-# TODO: Include a file with previously scanned and converted files to make this script faster.
-$allFiles = Get-ChildItem $locationToSearch -Include "*.*" -Recurse;
-ForEach ($file in $allFiles) {
+function Convert-File {
+    Param(
+        [Parameter(Mandatory = $true)]
+        [FileInfo] $file
+    )
     Write-Host "Checking file: $file"
     $audioFormatsString = ((mediainfo $file --Output='Audio;%Format%\n') | Out-String).Trim();
     $audioFormats = $audioFormatsString.Split('\r?\n');
@@ -39,3 +39,19 @@ ForEach ($file in $allFiles) {
 
     Write-Host "-------------------------"
 }
+
+function Main {
+    while ($true) {
+        # TODO: Include a file with previously scanned and converted files to make this script faster.
+        $allFiles = Get-ChildItem $locationToSearch -Include "*.*" -Recurse -File;
+        ForEach ($file in $allFiles) {
+            try {
+                Convert-File $file
+            }
+            catch { }
+        }
+        Start-Sleep -s 1800
+    }
+}
+
+Main

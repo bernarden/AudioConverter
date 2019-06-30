@@ -1,0 +1,11 @@
+version: "3.7"
+services:
+  audio-fixer:
+    image: audio-fixer:latest
+    container_name: audio-fixer
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./:/media
+    #restart: always

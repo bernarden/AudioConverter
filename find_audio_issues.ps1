@@ -21,7 +21,7 @@ function Convert-File {
     if ($audioFormats.Length -eq 1) {
         Write-Host "Trying to automatically fix: '$file'"
         $newFileName = Join-Path $file.DirectoryName "$($file.BaseName)-1$($file.Extension)"
-        $transcodeAudioOutput = ffmpeg -y -i "$file" -map 0 -c:v copy -c:a aac -c:s copy "$newFileName"
+        $transcodeAudioOutput = ffmpeg -y -i "$file" -map 0 -c:v copy -c:a ac3 -c:s copy "$newFileName"
         
         if ($LastExitCode) {
             Write-Host "Failed to automatically resolve the issue with file: '$file'" 

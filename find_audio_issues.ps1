@@ -4,7 +4,7 @@ $problematicAudioFormats = @("TrueHD", "E-AC-3")
 function Convert-File {
     Param(
         [Parameter(Mandatory = $true)]
-        [FileInfo] $file
+        [System.IO.FileInfo] $file
     )
     Write-Host "Checking file: $file"
     $audioFormatsString = ((mediainfo $file --Output='Audio;%Format%\n') | Out-String).Trim();
@@ -48,7 +48,9 @@ function Main {
             try {
                 Convert-File $file
             }
-            catch { }
+            catch { 
+                Write-Host $_.Exception | Format-List -force
+            }
         }
         Start-Sleep -s 1800
     }

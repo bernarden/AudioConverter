@@ -1,5 +1,5 @@
 # Variables
-$locationToSearch = "./";
+$locationToSearch = "/media";
 $problematicAudioFormats = @("TrueHD", "E-AC-3")
 
 # Logic

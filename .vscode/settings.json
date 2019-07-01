@@ -37,6 +37,7 @@
         "Recurse",
         "ffmpeg",
         "mediainfo",
-        "transcode"
+        "transcode",
+        "transcoding"
     ]
 }

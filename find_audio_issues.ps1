@@ -8,7 +8,7 @@ function Convert-File {
     )
     Write-Host "Checking file: $file"
     $audioFormatsString = ((mediainfo $file --Output='Audio;%Format%\n') | Out-String).Trim();
-    $audioFormats = $audioFormatsString.Split('\r?\n', [System.StringSplitOptions]::RemoveEmptyEntries);
+    $audioFormats = $audioFormatsString -split '\n' | Where-Object { $_ -ne $null -and $_ -ne ''}
     if ($audioFormats.Length -eq 0) {
         Write-Host "No audio found. Skipping file: '$file'"
         Write-Host "-------------------------"

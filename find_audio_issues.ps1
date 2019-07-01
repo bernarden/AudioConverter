@@ -24,7 +24,6 @@ function Convert-File {
             }
         }
     }
-    $audioIssues = $audioFormats | Where-Object { $audioFormat = $_; $problematicAudioFormats | ForEach-Object $audioFormat -contains $_ };
     if ($audioIssues.Length -eq 0) {
         Write-Host "No audio issues found. Skipping file: '$file'"
         Write-Host "-------------------------"

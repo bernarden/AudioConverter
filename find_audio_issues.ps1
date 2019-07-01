@@ -20,17 +20,25 @@ function Convert-File {
     # Note: Everything going forward has some audio issues.
     if ($audioFormats.Length -eq 1) {
         Write-Host "Trying to automatically fix: '$file'"
+        $originalFileSize = $file.Length;
+        $originalFileLastWriteTimeUtc = $file.LastWriteTimeUtc;
         $newFileName = Join-Path $file.DirectoryName "$($file.BaseName)-1$($file.Extension)"
         $transcodeAudioOutput = ffmpeg -y -i "$file" -map 0 -c:v copy -c:a ac3 -c:s copy "$newFileName"
-        
         if ($LastExitCode) {
             Write-Host "Failed to automatically resolve the issue with file: '$file'" 
             Remove-Item -Path $newFileName -Force
         }
         else {
-            Remove-Item -Path $file -Force
-            Rename-Item -Path $newFileName -NewName $file.Name
-            Write-Host "File has been fixed."
+            $file.Refresh();
+            if ($originalFileSize -eq $file.Length -and $originalFileLastWriteTimeUtc -eq $file.LastWriteTimeUtc) {
+                Remove-Item -Path $file -Force
+                Rename-Item -Path $newFileName -NewName $file.Name
+                Write-Host "File has been fixed."
+            }
+            else { 
+                Remove-Item -Path $newFileName -Force
+                Write-Host "File has been changed during transcoding. Try again next time."
+            }
         }
     }
     else {

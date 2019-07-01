@@ -9,8 +9,13 @@ function Convert-File {
     Write-Host "Checking file: $file"
     $audioFormatsString = ((mediainfo $file --Output='Audio;%Format%\n') | Out-String).Trim();
     $audioFormats = $audioFormatsString -split '\r?\n';
+    if($audioFormats.Length -eq 0) {
+        Write-Host "No audio found. Skipping file: '$file'"
+        Write-Host "-------------------------"
+        continue;
+    }
+
     Write-Host "Found audio formats: '$($audioFormats -join ", ")'"
-    
     $audioIssues = @();
     foreach ($audioFormat in $audioFormats) {
         foreach ($problematicAudioFormat in $problematicAudioFormats) {
@@ -21,7 +26,7 @@ function Convert-File {
     }
     $audioIssues = $audioFormats | Where-Object { $audioFormat = $_; $problematicAudioFormats | ForEach-Object $audioFormat -contains $_ };
     if ($audioIssues.Length -eq 0) {
-        Write-Host "No audio or audio issues found. Skipping file: '$file'"
+        Write-Host "No audio issues found. Skipping file: '$file'"
         Write-Host "-------------------------"
         continue;
     }

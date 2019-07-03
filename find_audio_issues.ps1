@@ -22,49 +22,71 @@ function Convert-File {
     }
 
     Write-Host "Found audio formats: '$(($audioStreams | Select-Object -ExpandProperty codec_name) -join ", ")'"
-    $audioStreamIssues = @();
+    $checkedAudioStreams = @();
+    $audioStreamIndex = 0;
     foreach ($audioSteam in $audioStreams) {
+        $isAdded = false;
         foreach ($problematicAudioFormat in $problematicAudioFormats) {
-            if ($audioSteam.codec_name -like "*$problematicAudioFormat*") {
-                $audioStreamIssues += [PSCustomObject]@{
-                    index      = $audioSteam.index
-                    codec_name = $audioSteam.codec_name
+            if ($audioSteam.codec_name -like "*$problematicAudioFormat*" -and !$isAdded) {
+                $checkedAudioStreams += [PSCustomObject]@{
+                    fileStreamIndex  = $audioSteam.index
+                    audioStreamIndex = $audioStreamIndex++ 
+                    codecName        = $audioSteam.codec_name
+                    isProblematic    = $true;
                 };
+                $isAdded = $true;
+                break;
             }
         }
+        if (!$isAdded) {
+            $checkedAudioStreams += [PSCustomObject]@{
+                fileStreamIndex  = $audioSteam.index
+                audioStreamIndex = $audioStreamIndex++ 
+                codecName        = $audioSteam.codec_name
+                isProblematic    = $false;
+            };
+        }
     }
-    if ($audioStreamIssues.Length -eq 0) {
+
+    $problematicAudioStreams = $checkedAudioStreams | Where-Object { $_.isProblematic };
+    if ($problematicAudioStreams.Length -eq 0) {
         Write-Host "No audio issues found. Skipping file: '$file'"
         Write-Host "-------------------------"
         continue;
     }
 
-    # Note: Everything going forward has some audio issues.
-    if ($audioStreams.Length -eq 1) {
-        Write-Host "Trying to automatically fix: '$file'"
-        $originalFileSize = $file.Length;
-        $originalFileLastWriteTimeUtc = $file.LastWriteTimeUtc;
-        $newFileName = Join-Path $file.DirectoryName "$($file.BaseName)-1$($file.Extension)"
-        $transcodeAudioOutput = ffmpeg -y -i "$file" -map 0 -c:v copy -c:a ac3 -c:s copy "$newFileName"
-        if ($LastExitCode) {
-            Write-Host "Failed to automatically resolve the issue with file: '$file'" 
-            Remove-Item -Path $newFileName -Force
-        }
-        else {
-            $file.Refresh();
-            if ($originalFileSize -eq $file.Length -and $originalFileLastWriteTimeUtc -eq $file.LastWriteTimeUtc) {
-                Remove-Item -Path $file -Force
-                Rename-Item -Path $newFileName -NewName $file.Name
-                Write-Host "File has been fixed."
-            }
-            else { 
-                Remove-Item -Path $newFileName -Force
-                Write-Host "File has been changed during transcoding. Try again next time."
-            }
-        }
+    Write-Host "Trying to automatically fix: '$file'"
+    $originalFileSize = $file.Length;
+    $originalFileLastWriteTimeUtc = $file.LastWriteTimeUtc;
+    $newFileName = Join-Path $file.DirectoryName "$($file.BaseName)-1$($file.Extension)"
+
+    $audioArguments = "";
+    Write-Host "checkedAudioStreams: $($checkedAudioStreams.Length)"
+    Write-Host "problematicAudioStreams: $($problematicAudioStreams.Length)"
+    if ($checkedAudioStreams.Length -gt 0 -and $checkedAudioStreams.Length -ne $problematicAudioStreams.Length) {
+        $audioArguments = "-c:a copy";
+    }
+    foreach ($problematicAudioStream in $problematicAudioStreams) {
+        $audioArguments += " -c:a:$($problematicAudioStream.audioStreamIndex) ac3";
+    }
+
+    $transcodeCommand = "ffmpeg -y -i ""$file"" -map 0 -c:v copy $audioArguments -c:s copy ""$newFileName"""
+    Invoke-Expression $transcodeCommand        
+    if ($LastExitCode) {
+        Write-Host "Failed to automatically resolve the issue with file: '$file'" 
+        Remove-Item -Path $newFileName -Force -ErrorAction Ignore
     }
     else {
-        Write-Host "User intervention is required. File: '$file'"
+        $file.Refresh();
+        if ($originalFileSize -eq $file.Length -and $originalFileLastWriteTimeUtc -eq $file.LastWriteTimeUtc) {
+            Remove-Item -Path $file -Force
+            Rename-Item -Path $newFileName -NewName $file.Name
+            Write-Host "File has been fixed."
+        }
+        else { 
+            Remove-Item -Path $newFileName -Force
+            Write-Host "File has been changed during transcoding. Try again next time."
+        }
     }
 
     Write-Host "-------------------------"

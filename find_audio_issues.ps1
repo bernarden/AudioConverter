@@ -7,7 +7,7 @@ function Convert-File {
         [System.IO.FileInfo] $file
     )
     Write-Host "Checking file: $file"
-    $mediaFileInfo = ffprobe -v quiet -print_format json -show_format -show_streams "$file" | ConvertFrom-Json
+    $mediaFileInfo = ffprobe -v quiet -print_format json -show_streams "$file" | ConvertFrom-Json
     if ($mediaFileInfo.PSObject.Properties.Name -notcontains "streams") {
         Write-Host "Not a media file. Skipping file: '$file'"
         Write-Host "-------------------------"

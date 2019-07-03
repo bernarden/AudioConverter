@@ -7,15 +7,14 @@ function Convert-File {
         [System.IO.FileInfo] $file
     )
     Write-Host "Checking file: $file"
-    $jsonFFprobeOutput = ffprobe -v quiet -print_format json -show_format -show_streams "$file"  
-    $ffprobOutput = $jsonFFprobeOutput | ConvertFrom-Json
-    if ($ffprobOutput.PSObject.Properties.Name -notcontains "streams") {
+    $mediaFileInfo = ffprobe -v quiet -print_format json -show_format -show_streams "$file" | ConvertFrom-Json
+    if ($mediaFileInfo.PSObject.Properties.Name -notcontains "streams") {
         Write-Host "Not a media file. Skipping file: '$file'"
         Write-Host "-------------------------"
         continue;
     }
     
-    $audioStreams = $ffprobOutput.streams | Where-Object { $_.codec_type -eq "audio" };
+    $audioStreams = $mediaFileInfo.streams | Where-Object { $_.codec_type -eq "audio" };
     if ($audioStreams.Length -eq 0) {
         Write-Host "No audio found. Skipping file: '$file'"
         Write-Host "-------------------------"

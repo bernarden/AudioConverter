@@ -1,5 +1,5 @@
 $locationToSearch = "/media";
-$problematicAudioFormats = @("TrueHD", "E-AC-3")
+$problematicAudioFormats = @("truehd", "eac3")
 
 function Convert-File {
     Param(
@@ -7,31 +7,41 @@ function Convert-File {
         [System.IO.FileInfo] $file
     )
     Write-Host "Checking file: $file"
-    $audioFormatsString = ((mediainfo $file --Output='Audio;%Format%\n') | Out-String).Trim();
-    $audioFormats = $audioFormatsString -split '\n' | Where-Object { $_ -ne $null -and $_ -ne ''}
-    if ($audioFormats.Length -eq 0) {
+    $jsonFFprobeOutput = ffprobe -v quiet -print_format json -show_format -show_streams "$file"  
+    $ffprobOutput = $jsonFFprobeOutput | ConvertFrom-Json
+    if ($ffprobOutput.PSObject.Properties.Name -notcontains "streams") {
+        Write-Host "Not a media file. Skipping file: '$file'"
+        Write-Host "-------------------------"
+        continue;
+    }
+    
+    $audioStreams = $ffprobOutput.streams | Where-Object { $_.codec_type -eq "audio" };
+    if ($audioStreams.Length -eq 0) {
         Write-Host "No audio found. Skipping file: '$file'"
         Write-Host "-------------------------"
         continue;
     }
 
-    Write-Host "Found audio formats: '$($audioFormats -join ", ")'"
-    $audioIssues = @();
-    foreach ($audioFormat in $audioFormats) {
+    Write-Host "Found audio formats: '$(($audioStreams | Select-Object -ExpandProperty codec_name) -join ", ")'"
+    $audioStreamIssues = @();
+    foreach ($audioSteam in $audioStreams) {
         foreach ($problematicAudioFormat in $problematicAudioFormats) {
-            if ($audioFormat -like "*$problematicAudioFormat*") {
-                $audioIssues += $audioFormat;
+            if ($audioSteam.codec_name -like "*$problematicAudioFormat*") {
+                $audioStreamIssues += [PSCustomObject]@{
+                    index      = $audioSteam.index
+                    codec_name = $audioSteam.codec_name
+                };
             }
         }
     }
-    if ($audioIssues.Length -eq 0) {
+    if ($audioStreamIssues.Length -eq 0) {
         Write-Host "No audio issues found. Skipping file: '$file'"
         Write-Host "-------------------------"
         continue;
     }
 
     # Note: Everything going forward has some audio issues.
-    if ($audioFormats.Length -eq 1) {
+    if ($audioStreams.Length -eq 1) {
         Write-Host "Trying to automatically fix: '$file'"
         $originalFileSize = $file.Length;
         $originalFileLastWriteTimeUtc = $file.LastWriteTimeUtc;

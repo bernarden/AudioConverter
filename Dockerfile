@@ -17,8 +17,8 @@ RUN apt-get update \
  && mkdir -p /script /media \
  && chmod 777 /script /media
 
-COPY . /script
+COPY ./src /script
 
 VOLUME /media
-ENTRYPOINT pwsh /script/find_audio_issues.ps1
+ENTRYPOINT pwsh /script/AudioFixer.ps1
 

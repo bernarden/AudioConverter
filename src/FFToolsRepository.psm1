@@ -54,7 +54,8 @@ function Convert-ProblematicAudioStreams {
         [Parameter(Mandatory = $true)]
         [AnalyzedAudioStream[]] $AnalyzedAudioStreams,
         
-        [string] $NewCodecNew = "ac3"
+        [Parameter(Mandatory = $true)]
+        [string] $AmendedAudioFormat
     )
 
     $AudioArguments = "";
@@ -63,7 +64,7 @@ function Convert-ProblematicAudioStreams {
         $AudioArguments = "-c:a copy";
     }
     foreach ($ProblematicAudioStream in $ProblematicAudioStreams) {
-        $AudioArguments += " -c:a:$($ProblematicAudioStream.audioStreamIndex) $($NewCodecNew)";
+        $AudioArguments += " -c:a:$($ProblematicAudioStream.audioStreamIndex) $($AmendedAudioFormat)";
     }
 
     $TranscodeCommand = "ffmpeg -y -i ""$OriginalFile"" -map 0 -c:v copy $AudioArguments -c:s copy ""$NewFileName"""

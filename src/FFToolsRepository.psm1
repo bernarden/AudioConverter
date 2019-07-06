@@ -3,13 +3,13 @@ using module ".\AnalyzedAudioStream.psm1"
 function Get-AnalyzedAudioStreams {
     Param(
         [Parameter(Mandatory = $true)]
-        [System.IO.FileInfo] $file,
+        [System.IO.FileInfo] $File,
 
         [Parameter(Mandatory = $true)]
-        [string[]] $problematicAudioFormats
+        [string[]] $ProblematicAudioFormats
     )
 
-    $mediaFileInfo = ffprobe -v quiet -print_format json -show_streams "$file" | ConvertFrom-Json
+    $mediaFileInfo = ffprobe -v quiet -print_format json -show_streams "$File" | ConvertFrom-Json
     if (!$mediaFileInfo -or !$mediaFileInfo.streams) {
         return $null;
     }
@@ -19,7 +19,7 @@ function Get-AnalyzedAudioStreams {
     $audioStreamIndex = 0;
     foreach ($audioSteam in $audioStreams) {
         $isAdded = false;
-        foreach ($problematicAudioFormat in $problematicAudioFormats) {
+        foreach ($problematicAudioFormat in $ProblematicAudioFormats) {
             if ($audioSteam.codec_name -like "*$problematicAudioFormat*" -and !$isAdded) {
                 $checkedAudioStreams += [AnalyzedAudioStream]@{
                     fileStreamIndex  = $audioSteam.index
@@ -46,28 +46,28 @@ function Get-AnalyzedAudioStreams {
 function Convert-ProblematicAudioStreams {
     Param(
         [Parameter(Mandatory = $true)]
-        [System.IO.FileInfo] $originalFile,
+        [System.IO.FileInfo] $OriginalFile,
 
         [Parameter(Mandatory = $true)]
-        [string] $newFileName,
+        [string] $NewFileName,
 
         [Parameter(Mandatory = $true)]
-        [AnalyzedAudioStream[]] $analyzedAudioStreams,
+        [AnalyzedAudioStream[]] $AnalyzedAudioStreams,
         
-        [string] $newCodecNew = "ac3"
+        [string] $NewCodecNew = "ac3"
     )
 
-    $audioArguments = "";
-    $problematicAudioStreams = $analyzedAudioStreams | Where-Object { $_.isProblematic };
-    if ($analyzedAudioStreams.Length -gt 0 -and $analyzedAudioStreams.Length -ne $problematicAudioStreams.Length) {
-        $audioArguments = "-c:a copy";
+    $AudioArguments = "";
+    $ProblematicAudioStreams = $AnalyzedAudioStreams | Where-Object { $_.isProblematic };
+    if ($AnalyzedAudioStreams.Length -gt 0 -and $AnalyzedAudioStreams.Length -ne $ProblematicAudioStreams.Length) {
+        $AudioArguments = "-c:a copy";
     }
-    foreach ($problematicAudioStream in $problematicAudioStreams) {
-        $audioArguments += " -c:a:$($problematicAudioStream.audioStreamIndex) $($newCodecNew)";
+    foreach ($ProblematicAudioStream in $ProblematicAudioStreams) {
+        $AudioArguments += " -c:a:$($ProblematicAudioStream.audioStreamIndex) $($NewCodecNew)";
     }
 
-    $transcodeCommand = "ffmpeg -y -i ""$originalFile"" -map 0 -c:v copy $audioArguments -c:s copy ""$newFileName"""
-    Invoke-Expression $transcodeCommand *> $null
+    $TranscodeCommand = "ffmpeg -y -i ""$OriginalFile"" -map 0 -c:v copy $AudioArguments -c:s copy ""$NewFileName"""
+    Invoke-Expression $TranscodeCommand *> $null
     return $LastExitCode
 }
 

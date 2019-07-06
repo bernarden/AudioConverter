@@ -8,4 +8,7 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./:/media
-    #restart: always
+    environment:
+      - WAIT_BETWEEN_SCANS_IN_SECONDS=43200
+      - PROBLEMATIC_AUDIO_FORMATS=truehd, eac3
+    restart: always

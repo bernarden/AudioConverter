@@ -1,56 +1,63 @@
 using module ".\FFToolsRepository.psm1"
 
-$locationToSearch = "/media";
-$problematicAudioFormats = @("truehd", "eac3")
+# Arguments
+$WaitBetweenScansInSecondsArg = [int](Get-ChildItem -Path Env:WAIT_BETWEEN_SCANS_IN_SECONDS -ErrorAction SilentlyContinue).Value
+$ProblematicAudioFormatsArg = (Get-ChildItem -Path Env:PROBLEMATIC_AUDIO_FORMATS -ErrorAction SilentlyContinue).Value
+$ProblematicAudioFormatsArg = if ($null -ne $ProblematicAudioFormatsArg) { [regex]::split($ProblematicAudioFormatsArg, '[,\s]+') } else { 0 }
+
+# Variables
+$LocationToSearch = "/media";
+$ProblematicAudioFormats = ($ProblematicAudioFormatsArg, @("truehd", "eac3") -ne 0)[0];
+$WaitBetweenScansInSeconds = ($WaitBetweenScansInSecondsArg, 43200 -ne 0)[0];
 
 function Convert-File {
     Param(
         [Parameter(Mandatory = $true)]
-        [System.IO.FileInfo] $file
+        [System.IO.FileInfo] $File
     )
 
-    Write-Host "Checking file: $file"
-    $analyzedAudioStreams = Get-AnalyzedAudioStreams -file $file -problematicAudioFormats $problematicAudioFormats
-    if ($null -eq $analyzedAudioStreams) {
-        Write-Host "Not a media file. Skipping file: '$file'"
+    Write-Host "Checking file: $File"
+    $AnalyzedAudioStreams = Get-AnalyzedAudioStreams -File $File -ProblematicAudioFormats $ProblematicAudioFormats
+    if ($null -eq $AnalyzedAudioStreams) {
+        Write-Host "Not a media file. Skipping file: '$File'"
         Write-Host "-------------------------"
         continue;
     }
     
-    if ($analyzedAudioStreams.Length -eq 0) {
-        Write-Host "No audio found. Skipping file: '$file'"
+    if ($AnalyzedAudioStreams.Length -eq 0) {
+        Write-Host "No audio found. Skipping file: '$File'"
         Write-Host "-------------------------"
         continue;
     }
 
-    Write-Host "Found audio formats: '$(($analyzedAudioStreams | Select-Object -ExpandProperty codecName) -join ", ")'"
-    if (($analyzedAudioStreams | Where-Object { $_.isProblematic }).Length -eq 0) {
-        Write-Host "No issues found. Skipping file: '$file'"
+    Write-Host "Found audio formats: '$(($AnalyzedAudioStreams | Select-Object -ExpandProperty codecName) -join ", ")'"
+    if (($AnalyzedAudioStreams | Where-Object { $_.IsProblematic }).Length -eq 0) {
+        Write-Host "No issues found. Skipping file: '$File'"
         Write-Host "-------------------------"
         continue;
     }
 
-    Write-Host "Trying to automatically fix: '$file'"
-    $originalFileSize = $file.Length;
-    $originalFileLastWriteTimeUtc = $file.LastWriteTimeUtc;
-    $newFileName = Join-Path $file.DirectoryName "$($file.BaseName)-1$($file.Extension)"
-    $ExitCode = Convert-ProblematicAudioStreams -originalFile $file -newFileName $newFileName -analyzedAudioStreams $analyzedAudioStreams 
+    Write-Host "Trying to automatically fix: '$File'"
+    $OriginalFileSize = $File.Length;
+    $OriginalFileLastWriteTimeUtc = $File.LastWriteTimeUtc;
+    $NewFileName = Join-Path $File.DirectoryName "$($File.BaseName)-1$($File.Extension)"
+    $ExitCode = Convert-ProblematicAudioStreams -OriginalFile $File -NewFileName $NewFileName -AnalyzedAudioStreams $AnalyzedAudioStreams 
     if ($ExitCode) {
-        Write-Host "Failed to automatically resolve the issue with file: '$file'" 
-        Remove-Item -Path $newFileName -Force -ErrorAction Ignore
+        Write-Host "Failed to automatically resolve the issue with file: '$File'" 
+        Remove-Item -Path $NewFileName -Force -ErrorAction Ignore
         Write-Host "-------------------------"
         continue;
     }
  
-    $file.Refresh();
-    if ($originalFileSize -eq $file.Length -and $originalFileLastWriteTimeUtc -eq $file.LastWriteTimeUtc) {
-        Remove-Item -Path $file -Force
-        Rename-Item -Path $newFileName -NewName $file.Name
+    $File.Refresh();
+    if ($OriginalFileSize -eq $File.Length -and $OriginalFileLastWriteTimeUtc -eq $File.LastWriteTimeUtc) {
+        Remove-Item -Path $File -Force
+        Rename-Item -Path $NewFileName -NewName $File.Name
         Write-Host "File has been fixed."
         Write-Host "-------------------------"
     }
     else { 
-        Remove-Item -Path $newFileName -Force
+        Remove-Item -Path $NewFileName -Force
         Write-Host "File has been changed during transcoding. Try again next time."
         Write-Host "-------------------------"
     }
@@ -58,22 +65,22 @@ function Convert-File {
 
 function Get-FilesToCheck {
     # TODO: Include a file with previously scanned and converted files to make this script faster.
-    $allFiles = Get-ChildItem $locationToSearch -Include "*.*" -Recurse -File;
-    return $allFiles;
+    $AllFiles = Get-ChildItem $LocationToSearch -Include "*.*" -Recurse -File;
+    return $AllFiles;
 }
 
 function Main {
     while ($true) {
-        $filesToCheck = Get-FilesToCheck
-        ForEach ($file in $filesToCheck) {
+        $FilesToCheck = Get-FilesToCheck
+        ForEach ($File in $FilesToCheck) {
             try {
-                Convert-File $file
+                Convert-File -File $File
             }
             catch { 
                 Write-Host $_.Exception
             }
         }
-        Start-Sleep -s 43200
+        Start-Sleep -s $WaitBetweenScansInSeconds
     }
 }
 

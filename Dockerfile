@@ -14,11 +14,12 @@ RUN apt-get update \
    powershell \
  && apt-get clean autoclean \
  && apt-get autoremove \
- && mkdir -p /script /media \
- && chmod 777 /script /media
+ && mkdir -p /script /media /config \
+ && chmod 777 /script /media /config
 
 COPY ./src /script
 
 VOLUME /media
+VOLUME /config
 ENTRYPOINT pwsh /script/AudioFixer.ps1
 

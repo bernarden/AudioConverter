@@ -92,6 +92,7 @@ function Main {
             }
         }
         Save-ConfigToFile
+        Write-Host "Scanning is complete. Sleeping for $WaitBetweenScansInSeconds seconds."
         Start-Sleep -s $WaitBetweenScansInSeconds
     }
 }

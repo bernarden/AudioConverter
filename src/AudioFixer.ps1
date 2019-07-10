@@ -24,12 +24,14 @@ function Convert-File {
     Write-Host "Checking file: $File"
     $AnalyzedAudioStreams = Get-AnalyzedAudioStreams -File $File -ProblematicAudioFormats $ProblematicAudioFormats
     if ($null -eq $AnalyzedAudioStreams) {
+        Set-FileAsScannedOrFixed $File
         Write-Host "Not a media file. Skipping file: '$File'"
         Write-Host "-------------------------"
         continue;
     }
     
     if ($AnalyzedAudioStreams.Length -eq 0) {
+        Set-FileAsScannedOrFixed $File
         Write-Host "No audio found. Skipping file: '$File'"
         Write-Host "-------------------------"
         continue;
@@ -37,13 +39,14 @@ function Convert-File {
 
     Write-Host "Found audio formats: '$(($AnalyzedAudioStreams | Select-Object -ExpandProperty codecName) -join ", ")'"
     if (($AnalyzedAudioStreams | Where-Object { $_.IsProblematic }).Length -eq 0) {
+        Set-FileAsScannedOrFixed $File
         Write-Host "No issues found. Skipping file: '$File'"
         Write-Host "-------------------------"
         continue;
     }
 
     Write-Host "Trying to automatically fix: '$File'"
-    $OriginalFileSize = $File.Length;
+    $OriginalFileLength = $File.Length;
     $OriginalFileLastWriteTimeUtc = $File.LastWriteTimeUtc;
     $NewFileName = Join-Path $File.DirectoryName "$($File.BaseName)-1$($File.Extension)"
     $ExitCode = Convert-ProblematicAudioStreams -OriginalFile $File -NewFileName $NewFileName -AnalyzedAudioStreams $AnalyzedAudioStreams -AmendedAudioFormat $AmendedAudioFormat
@@ -55,9 +58,11 @@ function Convert-File {
     }
  
     $File.Refresh();
-    if ($OriginalFileSize -eq $File.Length -and $OriginalFileLastWriteTimeUtc -eq $File.LastWriteTimeUtc) {
+    if ($OriginalFileLength -eq $File.Length -and $OriginalFileLastWriteTimeUtc -eq $File.LastWriteTimeUtc) {
         Remove-Item -Path $File -Force
         Rename-Item -Path $NewFileName -NewName $File.Name
+        $File.Refresh();
+        Set-FileAsScannedOrFixed $File
         Write-Host "File has been fixed."
         Write-Host "-------------------------"
     }
@@ -69,14 +74,14 @@ function Convert-File {
 }
 
 function Get-FilesToCheck {
-    # TODO: Include a file with previously scanned and converted files to make this script faster.
     $AllFiles = Get-ChildItem $LocationToSearch -Include "*.*" -Recurse -File;
-    return $AllFiles;
+    $AllUncheckedFiles = Get-UncheckedFilesAndRefreshConfig $AllFiles
+    return $AllUncheckedFiles;
 }
 
 function Main {
-    Initialize-ConfigRepository  -ConfigDirectory $ConfigDirectory -CurrentVersion $CurrentScriptVersion
     while ($true) {
+        Initialize-ConfigRepository -ConfigDirectory $ConfigDirectory -CurrentVersion $CurrentScriptVersion
         $FilesToCheck = Get-FilesToCheck
         ForEach ($File in $FilesToCheck) {
             try {
@@ -86,6 +91,7 @@ function Main {
                 Write-Host $_.Exception
             }
         }
+        Save-ConfigToFile
         Start-Sleep -s $WaitBetweenScansInSeconds
     }
 }

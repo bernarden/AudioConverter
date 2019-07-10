@@ -1,4 +1,4 @@
-using module ".\AnalyzedAudioStream.psm1"
+using module ".\AnalyzedAudioStreamClass.psm1"
 
 function Get-AnalyzedAudioStreams {
     Param(
@@ -18,26 +18,18 @@ function Get-AnalyzedAudioStreams {
     $checkedAudioStreams = @();
     $audioStreamIndex = 0;
     foreach ($audioSteam in $audioStreams) {
-        $isAdded = false;
+        $checkedAudioStream = [AnalyzedAudioStream]@{
+            fileStreamIndex  = $audioSteam.index
+            audioStreamIndex = $audioStreamIndex++ 
+            codecName        = $audioSteam.codec_name
+            isProblematic    = $false;
+        };
+        $checkedAudioStreams += $checkedAudioStream;
         foreach ($problematicAudioFormat in $ProblematicAudioFormats) {
-            if ($audioSteam.codec_name -like "*$problematicAudioFormat*" -and !$isAdded) {
-                $checkedAudioStreams += [AnalyzedAudioStream]@{
-                    fileStreamIndex  = $audioSteam.index
-                    audioStreamIndex = $audioStreamIndex++ 
-                    codecName        = $audioSteam.codec_name
-                    isProblematic    = $true;
-                };
-                $isAdded = $true;
+            if ($audioSteam.codec_name -like "*$problematicAudioFormat*") {
+                $checkedAudioStream.isProblematic = $true;
                 break;
             }
-        }
-        if (!$isAdded) {
-            $checkedAudioStreams += [AnalyzedAudioStream]@{
-                fileStreamIndex  = $audioSteam.index
-                audioStreamIndex = $audioStreamIndex++ 
-                codecName        = $audioSteam.codec_name
-                isProblematic    = $false;
-            };
         }
     }
     return $checkedAudioStreams;

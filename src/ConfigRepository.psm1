@@ -18,7 +18,7 @@ function Initialize-ConfigRepository {
 
     $script:NewConfig = $script:DefaultConfig;
 
-    $script:ConfigFileFullName = "$ConfigDirectory$ConfigFileName"
+    $script:ConfigFileFullName = Join-Path $ConfigDirectory $ConfigFileName
     if (!(Test-Path $script:ConfigFileFullName)) {
         $script:ExistingConfig = $script:DefaultConfig 
         $ConfigJson = $script:DefaultConfig | ConvertTo-Json

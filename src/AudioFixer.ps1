@@ -1,5 +1,6 @@
 using module ".\FFToolsRepository.psm1"
 using module ".\ConfigRepository.psm1"
+using module ".\EmailRepository.psm1"
 
 # Arguments
 $WaitBetweenScansInSecondsArg = [int](Get-ChildItem -Path Env:WAIT_BETWEEN_SCANS_IN_SECONDS -ErrorAction SilentlyContinue).Value
@@ -80,6 +81,8 @@ function Get-FilesToCheck {
 }
 
 function Main {
+    Initialize-EmailRepository
+
     while ($true) {
         Initialize-ConfigRepository -ConfigDirectory $ConfigDirectory -CurrentVersion $CurrentScriptVersion
         $FilesToCheck = Get-FilesToCheck

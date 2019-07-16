@@ -54,6 +54,7 @@ function Convert-File {
     if ($ExitCode) {
         Write-Host "Failed to automatically resolve the issue with file: '$File'" 
         Remove-Item -Path $NewFileName -Force -ErrorAction Ignore
+        Send-TranscodingFailureEmail -File $File -AnalyzedAudioStreams $AnalyzedAudioStreams -AmendedAudioFormat $AmendedAudioFormat
         Write-Host "-------------------------"
         continue;
     }

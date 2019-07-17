@@ -2,16 +2,16 @@ using module ".\dlls\BouncyCastle.Crypto.dll"
 using module ".\dlls\MimeKit.dll"
 using module ".\dlls\MailKit.dll"
 using module ".\AnalyzedAudioStreamClass.psm1"
+using module ".\EnvVariableHelper.psm1"
 
 function Initialize-EmailRepository {
-    $script:FromEmailAddress = [string](Get-ChildItem -Path Env:EMAIL_CONFIG_FROM_EMAIL_ADDRESS -ErrorAction SilentlyContinue).Value
-    $script:ToEmailAddresses = (Get-ChildItem -Path Env:EMAIL_CONFIG_TO_EMAIL_ADDRESSES -ErrorAction SilentlyContinue).Value
-    $script:ToEmailAddresses = if ($null -ne $script:ToEmailAddresses) { [regex]::split($script:ToEmailAddresses, '[,\s]+') } else { 0 }
-    $script:UserName = [string](Get-ChildItem -Path Env:EMAIL_CONFIG_USERNAME -ErrorAction SilentlyContinue).Value
-    $script:Password = [string](Get-ChildItem -Path Env:EMAIL_CONFIG_PASSWORD -ErrorAction SilentlyContinue).Value
-    $script:SmtpServer = [string](Get-ChildItem -Path Env:EMAIL_CONFIG_SMTP_SERVER -ErrorAction SilentlyContinue).Value
-    $script:SmtpPort = [int](Get-ChildItem -Path Env:EMAIL_CONFIG_SMTP_PORT -ErrorAction SilentlyContinue).Value
-    $script:SendTestEmail = [System.Convert]::ToBoolean((Get-ChildItem -Path Env:EMAIL_CONFIG_SEND_TEST_EMAIL -ErrorAction SilentlyContinue).Value)
+    $script:FromEmailAddress = Get-StringEnvVariable -Name "EMAIL_CONFIG_FROM_EMAIL_ADDRESS"
+    $script:ToEmailAddresses = Get-StringArrayEnvVariable -Name "EMAIL_CONFIG_TO_EMAIL_ADDRESSES"
+    $script:UserName = Get-StringEnvVariable -Name "EMAIL_CONFIG_USERNAME"
+    $script:Password = Get-StringEnvVariable -Name "EMAIL_CONFIG_PASSWORD"
+    $script:SmtpServer = Get-StringEnvVariable -Name "EMAIL_CONFIG_SMTP_SERVER"
+    $script:SmtpPort = Get-IntEnvVariable -Name "EMAIL_CONFIG_SMTP_PORT"
+    $script:SendTestEmail = Get-BooleanEnvVariable -Name "EMAIL_CONFIG_SEND_TEST_EMAIL" 
 
     if (!$script:FromEmailAddress -or !$script:ToEmailAddresses -or !$script:UserName -or 
         !$script:Password -or !$script:SmtpServer -or !$script:SmtpPort) {

@@ -1,19 +1,14 @@
 using module ".\FFToolsRepository.psm1"
 using module ".\ConfigRepository.psm1"
 using module ".\EmailRepository.psm1"
-
-# Arguments
-$WaitBetweenScansInSecondsArg = [int](Get-ChildItem -Path Env:WAIT_BETWEEN_SCANS_IN_SECONDS -ErrorAction SilentlyContinue).Value
-$ProblematicAudioFormatsArg = (Get-ChildItem -Path Env:PROBLEMATIC_AUDIO_FORMATS -ErrorAction SilentlyContinue).Value
-$ProblematicAudioFormatsArg = if ($null -ne $ProblematicAudioFormatsArg) { [regex]::split($ProblematicAudioFormatsArg, '[,\s]+') } else { 0 }
-$AmendedAudioFormatArg = [string](Get-ChildItem -Path Env:AMENDED_AUDIO_FORMAT -ErrorAction SilentlyContinue).Value
+using module ".\EnvVariableHelper.psm1"
 
 # Variables
 $LocationToSearch = "/media";
 $ConfigDirectory = "/config"
-$ProblematicAudioFormats = ($ProblematicAudioFormatsArg, @("truehd", "eac3") -ne 0)[0];
-$WaitBetweenScansInSeconds = ($WaitBetweenScansInSecondsArg, 43200 -ne 0)[0];
-$AmendedAudioFormat = ($AmendedAudioFormatArg, "ac3" -ne '')[0];
+$ProblematicAudioFormats = Get-StringArrayEnvVariable -Name "PROBLEMATIC_AUDIO_FORMATS" -DefaultValue @("truehd", "eac3")
+$WaitBetweenScansInSeconds = Get-IntEnvVariable -Name "WAIT_BETWEEN_SCANS_IN_SECONDS" -DefaultValue 43200
+$AmendedAudioFormat = Get-StringEnvVariable -Name "AMENDED_AUDIO_FORMAT" -DefaultValue "ac3"
 $CurrentScriptVersion = "1.0.0"
 
 function Convert-File {

@@ -45,8 +45,8 @@ function Convert-File {
     $OriginalFileLength = $File.Length;
     $OriginalFileLastWriteTimeUtc = $File.LastWriteTimeUtc;
     $NewFileName = Join-Path $File.DirectoryName "$($File.BaseName)-1$($File.Extension)"
-    $ExitCode = Convert-ProblematicAudioStreams -OriginalFile $File -NewFileName $NewFileName -AnalyzedAudioStreams $AnalyzedAudioStreams -AmendedAudioFormat $AmendedAudioFormat
-    if ($ExitCode) {
+    $ConversionResult = Convert-ProblematicAudioStreams -OriginalFile $File -NewFileName $NewFileName -AnalyzedAudioStreams $AnalyzedAudioStreams -AmendedAudioFormat $AmendedAudioFormat
+    if ($ConversionResult.ExitCode) {
         Write-Host "Failed to automatically resolve the issue with file: '$File'" 
         Remove-Item -Path $NewFileName -Force -ErrorAction Ignore
         Send-TranscodingFailureEmail -File $File -AnalyzedAudioStreams $AnalyzedAudioStreams -AmendedAudioFormat $AmendedAudioFormat

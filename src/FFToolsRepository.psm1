@@ -50,18 +50,20 @@ function Convert-ProblematicAudioStreams {
         [string] $AmendedAudioFormat
     )
 
-    $AudioArguments = "";
+    $AudioArguments = @();
     $ProblematicAudioStreams = $AnalyzedAudioStreams | Where-Object { $_.isProblematic };
     if ($AnalyzedAudioStreams.Length -gt 0 -and $AnalyzedAudioStreams.Length -ne $ProblematicAudioStreams.Length) {
-        $AudioArguments = "-c:a copy";
+        $AudioArguments += "-c:a", "copy";
     }
     foreach ($ProblematicAudioStream in $ProblematicAudioStreams) {
-        $AudioArguments += " -c:a:$($ProblematicAudioStream.audioStreamIndex) $($AmendedAudioFormat)";
+        $AudioArguments += "-c:a:$($ProblematicAudioStream.audioStreamIndex)", $AmendedAudioFormat;
     }
 
-    $TranscodeCommand = "ffmpeg -y -i ""$OriginalFile"" -map 0 -c:v copy $AudioArguments -c:s copy ""$NewFileName"""
-    Invoke-Expression $TranscodeCommand *> $null
-    return $LastExitCode
+    $Output = (ffmpeg -y -i "$OriginalFile" -map 0 -c:v copy $AudioArguments -c:s copy "$NewFileName" *>&1) | Out-String;
+    return  @{
+        ExitCode = $LastExitCode
+        Output   = $Output
+    }
 }
 
 Export-ModuleMember -Function Get-AnalyzedAudioStreams, Convert-ProblematicAudioStreams

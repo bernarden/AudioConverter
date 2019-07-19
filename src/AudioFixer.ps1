@@ -48,8 +48,9 @@ function Convert-File {
     $ConversionResult = Convert-ProblematicAudioStreams -OriginalFile $File -NewFileName $NewFileName -AnalyzedAudioStreams $AnalyzedAudioStreams -AmendedAudioFormat $AmendedAudioFormat
     if ($ConversionResult.ExitCode) {
         Write-Host "Failed to automatically resolve the issue with file: '$File'" 
+        Write-Host $ConversionResult.Output
         Remove-Item -Path $NewFileName -Force -ErrorAction Ignore
-        Send-TranscodingFailureEmail -File $File -AnalyzedAudioStreams $AnalyzedAudioStreams -AmendedAudioFormat $AmendedAudioFormat
+        Send-TranscodingFailureEmail -File $File -AnalyzedAudioStreams $AnalyzedAudioStreams -AmendedAudioFormat $AmendedAudioFormat -Logs $ConversionResult.Output
         Write-Host "-------------------------"
         continue;
     }

@@ -50,7 +50,10 @@ function Send-TranscodingFailureEmail {
         [AnalyzedAudioStream[]] $AnalyzedAudioStreams,
         
         [Parameter(Mandatory = $true)]
-        [string] $AmendedAudioFormat
+        [string] $AmendedAudioFormat,
+
+        [Parameter(Mandatory = $true)]
+        [string] $Logs
     )
 
     if ($script:EmailingDisabled) {
@@ -95,6 +98,8 @@ function Send-TranscodingFailureEmail {
                         <ul style="text-align:left; margin-top: 5px;">
 $transcodingSettings
                         </ul>
+                        <div style="text-align:left;">Logs:</div>
+                        <div style="text-align:left; white-space:pre-line">$($Logs)</div>
                     </td>
                 </tr>
             </tbody>

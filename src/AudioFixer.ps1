@@ -72,7 +72,7 @@ function Convert-File {
 }
 
 function Get-FilesToCheck {
-    $AllFiles = Get-ChildItem $LocationToSearch -Include "*.*" -Recurse -File;
+    $AllFiles = @(Get-ChildItem $LocationToSearch -Include "*.*" -Recurse -File);
     $AllUncheckedFiles = Get-UncheckedFilesAndRefreshConfig $AllFiles
     return $AllUncheckedFiles;
 }

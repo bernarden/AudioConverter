@@ -32,6 +32,7 @@ function Initialize-ConfigRepository {
 function Get-UncheckedFilesAndRefreshConfig {
     Param(
         [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
         [System.IO.FileInfo[]] $AllFiles
     )
 

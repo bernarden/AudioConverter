@@ -11,25 +11,28 @@ function Initialize-ConfigRepository {
         [String] $CurrentVersion
     )
 
-    $script:DefaultConfig = [Config]@{
-        CheckedFiles = @()
-        Version      = $CurrentVersion
-    }
-
-    $script:NewConfig = $script:DefaultConfig;
-
+    $script:Version = $CurrentVersion
+    $script:NewConfig = Get-DefaultConfig
     $script:ConfigFileFullName = Join-Path $ConfigDirectory $ConfigFileName
     if (!(Test-Path $script:ConfigFileFullName)) {
-        $script:ExistingConfig = $script:DefaultConfig 
-        $ConfigJson = $script:DefaultConfig | ConvertTo-Json
-        New-Item -path $ConfigDirectory -name $ConfigFileName -type "file" -value $ConfigJson > $null
+        $script:ExistingConfig = Get-DefaultConfig
+        $script:ExistingConfigJson = $script:ExistingConfig | ConvertTo-Json -Compress
+        New-Item -path $ConfigDirectory -name $ConfigFileName -type "file" -value $script:ExistingConfigJson > $null
     }
     else {
-        $script:ExistingConfig = Get-Content -Path $script:ConfigFileFullName | ConvertFrom-Json
+        $script:ExistingConfigJson = Get-Content -Path $script:ConfigFileFullName
+        $script:ExistingConfig = $script:ExistingConfigJson | ConvertFrom-Json
     }
 }
 
-function Get-UncheckedFilesAndRefreshConfig {
+function Get-DefaultConfig {
+    return [Config]@{
+        CheckedFiles = @()
+        Version      = $script:Version
+    }
+}
+
+function Get-UncheckedFilesAndRemoveDeletedFilesFromConfig {
     Param(
         [Parameter(Mandatory = $true)]
         [AllowEmptyCollection()]
@@ -70,9 +73,15 @@ function Set-FileAsScannedOrFixed {
     };
 }
 
-function Save-ConfigToFile {
-    $NewConfigJson = $script:NewConfig | ConvertTo-Json
-    Set-Content -Path $script:ConfigFileFullName -Value $NewConfigJson
+function Save-ConfigToFileAndResetRepository {
+    $NewConfigJson = $script:NewConfig | ConvertTo-Json -Compress
+    if (!$script:ExistingConfigJson.Equals($NewConfigJson)) {
+        Set-Content -Path $script:ConfigFileFullName -Value $NewConfigJson
+        $script:ExistingConfig = $script:NewConfig 
+        $script:ExistingConfigJson = $NewConfigJson
+    }
+    
+    $script:NewConfig = Get-DefaultConfig
 }
 
-Export-ModuleMember -Function Initialize-ConfigRepository, Set-FileAsScannedOrFixed, Get-UncheckedFilesAndRefreshConfig, Save-ConfigToFile
+Export-ModuleMember -Function Initialize-ConfigRepository, Set-FileAsScannedOrFixed, Get-UncheckedFilesAndRemoveDeletedFilesFromConfig, Save-ConfigToFileAndResetRepository

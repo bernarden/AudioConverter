@@ -73,7 +73,7 @@ function Convert-File {
 
 function Get-FilesToCheck {
     $AllFiles = @(Get-ChildItem $LocationToSearch -Include "*.*" -Recurse -File);
-    $AllUncheckedFiles = Get-UncheckedFilesAndRefreshConfig $AllFiles
+    $AllUncheckedFiles = Get-UncheckedFilesAndRemoveDeletedFilesFromConfig $AllFiles
     return $AllUncheckedFiles;
 }
 
@@ -92,9 +92,9 @@ function Main {
     New-DirectoryIfDoesNotExist -DirectoryPath $LocationToSearch
     New-DirectoryIfDoesNotExist -DirectoryPath $ConfigDirectory
     Initialize-EmailRepository
+    Initialize-ConfigRepository -ConfigDirectory $ConfigDirectory -CurrentVersion $CurrentScriptVersion
 
     while ($true) {
-        Initialize-ConfigRepository -ConfigDirectory $ConfigDirectory -CurrentVersion $CurrentScriptVersion
         $FilesToCheck = Get-FilesToCheck
         ForEach ($File in $FilesToCheck) {
             try {
@@ -104,7 +104,7 @@ function Main {
                 Write-Host $_.Exception
             }
         }
-        Save-ConfigToFile
+        Save-ConfigToFileAndResetRepository
         Write-Host "Scanning is complete. Sleeping for $WaitBetweenScansInSeconds seconds."
         Start-Sleep -s $WaitBetweenScansInSeconds
     }

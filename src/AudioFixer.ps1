@@ -77,7 +77,20 @@ function Get-FilesToCheck {
     return $AllUncheckedFiles;
 }
 
+function New-DirectoryIfDoesNotExist {
+    Param(
+        [Parameter(Mandatory = $true)]
+        [string] $DirectoryPath
+    )
+
+    If (!(Test-Path $DirectoryPath)) {
+        New-Item -ItemType Directory -Force -Path $DirectoryPath | Out-Null
+    }
+}
+
 function Main {
+    New-DirectoryIfDoesNotExist -DirectoryPath $LocationToSearch
+    New-DirectoryIfDoesNotExist -DirectoryPath $ConfigDirectory
     Initialize-EmailRepository
 
     while ($true) {

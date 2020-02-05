@@ -8,7 +8,7 @@
             "name": "AudioFixer",
             "type": "PowerShell",
             "request": "launch",
-            "script": "./src/AudioFixer.ps1"
+            "script": "${workspaceFolder}/src/AudioFixer.ps1"
         }
     ]
 }

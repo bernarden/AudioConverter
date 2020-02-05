@@ -66,4 +66,17 @@ function Convert-ProblematicAudioStreams {
     }
 }
 
-Export-ModuleMember -Function Get-AnalyzedAudioStreams, Convert-ProblematicAudioStreams
+function Get-MediaDuration {
+    Param(
+        [Parameter(Mandatory = $true)]
+        [System.IO.FileInfo] $File
+    )
+
+    $Output = (ffprobe -i "$File" -show_format  -v quiet *>&1) | Out-String;
+    if($Output -match "duration=(\d+.\d+)"){
+        return $Matches[1]
+    }
+    return "N/A"
+}
+
+Export-ModuleMember -Function Get-AnalyzedAudioStreams, Convert-ProblematicAudioStreams, Get-MediaDuration

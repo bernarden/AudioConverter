@@ -7,4 +7,5 @@ class CheckedFile {
     [String] $FullName
     [DateTime] $LastWriteTimeUtc
     [Int64] $Length
+    [String] $Duration
 }

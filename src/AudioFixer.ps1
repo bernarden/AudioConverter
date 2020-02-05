@@ -2,6 +2,7 @@ using module ".\FFToolsRepository.psm1"
 using module ".\ConfigRepository.psm1"
 using module ".\EmailRepository.psm1"
 using module ".\EnvVariableHelper.psm1"
+using module ".\ScriptVersionMigrator.psm1"
 
 # Variables
 $LocationToSearch = "/media";
@@ -9,7 +10,7 @@ $ConfigDirectory = "/config"
 $ProblematicAudioFormats = Get-StringArrayEnvVariable -Name "PROBLEMATIC_AUDIO_FORMATS" -DefaultValue @("truehd", "eac3")
 $WaitBetweenScansInSeconds = Get-IntEnvVariable -Name "WAIT_BETWEEN_SCANS_IN_SECONDS" -DefaultValue 43200
 $AmendedAudioFormat = Get-StringEnvVariable -Name "AMENDED_AUDIO_FORMAT" -DefaultValue "ac3"
-$CurrentScriptVersion = "1.0.0"
+$CurrentScriptVersion = "1.1.0"
 
 function Convert-File {
     Param(
@@ -20,14 +21,15 @@ function Convert-File {
     Write-Host "Checking file: $File"
     $AnalyzedAudioStreams = Get-AnalyzedAudioStreams -File $File -ProblematicAudioFormats $ProblematicAudioFormats
     if ($null -eq $AnalyzedAudioStreams) {
-        Set-FileAsScannedOrFixed $File
+        Set-FileAsScannedOrFixed $File "N/A"
         Write-Host "Not a media file. Skipping file: '$File'"
         Write-Host "-------------------------"
         continue;
     }
     
     if ($AnalyzedAudioStreams.Length -eq 0) {
-        Set-FileAsScannedOrFixed $File
+        $Duration = Get-MediaDuration $File
+        Set-FileAsScannedOrFixed $File $Duration
         Write-Host "No audio found. Skipping file: '$File'"
         Write-Host "-------------------------"
         continue;
@@ -35,7 +37,8 @@ function Convert-File {
 
     Write-Host "Found audio formats: '$(($AnalyzedAudioStreams | Select-Object -ExpandProperty codecName) -join ", ")'"
     if (($AnalyzedAudioStreams | Where-Object { $_.IsProblematic }).Length -eq 0) {
-        Set-FileAsScannedOrFixed $File
+        $Duration = Get-MediaDuration $File
+        Set-FileAsScannedOrFixed $File $Duration
         Write-Host "No issues found. Skipping file: '$File'"
         Write-Host "-------------------------"
         continue;
@@ -60,7 +63,8 @@ function Convert-File {
         Remove-Item -Path $File -Force
         Rename-Item -Path $NewFileName -NewName $File.Name
         $File.Refresh();
-        Set-FileAsScannedOrFixed $File
+        $Duration = Get-MediaDuration $File
+        Set-FileAsScannedOrFixed $File $Duration
         Write-Host "File has been fixed."
         Write-Host "-------------------------"
     }
@@ -93,6 +97,8 @@ function Main {
     New-DirectoryIfDoesNotExist -DirectoryPath $ConfigDirectory
     Initialize-EmailRepository
     Initialize-ConfigRepository -ConfigDirectory $ConfigDirectory -CurrentVersion $CurrentScriptVersion
+
+    Move-ScriptToNewVersion -CurrentVersion $CurrentScriptVersion
 
     while ($true) {
         $FilesToCheck = Get-FilesToCheck

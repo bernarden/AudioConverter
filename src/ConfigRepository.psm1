@@ -63,13 +63,17 @@ function Get-UncheckedFilesAndRemoveDeletedFilesFromConfig {
 function Set-FileAsScannedOrFixed {
     Param(
         [Parameter(Mandatory = $true)]
-        [System.IO.FileInfo] $File
+        [System.IO.FileInfo] $File,
+
+        [Parameter(Mandatory = $true)]
+        [string] $Duration
     )
 
     $script:NewConfig.CheckedFiles += [CheckedFile]@{
         FullName         = $File.FullName
         LastWriteTimeUtc = $File.LastWriteTimeUtc
         Length           = $File.Length
+        Duration         = $Duration
     };
 }
 
@@ -84,4 +88,8 @@ function Save-ConfigToFileAndResetRepository {
     $script:NewConfig = Get-DefaultConfig
 }
 
-Export-ModuleMember -Function Initialize-ConfigRepository, Set-FileAsScannedOrFixed, Get-UncheckedFilesAndRemoveDeletedFilesFromConfig, Save-ConfigToFileAndResetRepository
+function Get-ExistingConfig {
+    return $script:ExistingConfig
+}
+
+Export-ModuleMember -Function Initialize-ConfigRepository, Set-FileAsScannedOrFixed, Get-UncheckedFilesAndRemoveDeletedFilesFromConfig, Save-ConfigToFileAndResetRepository, Get-ExistingConfig

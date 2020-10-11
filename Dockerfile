@@ -1,4 +1,4 @@
-ARG FFMPEG_VERSION=latest
+ARG FFMPEG_VERSION=4.3-ubuntu1604
 FROM jrottenberg/ffmpeg:${FFMPEG_VERSION} AS base
 
 RUN apt-get update \

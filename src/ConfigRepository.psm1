@@ -60,7 +60,7 @@ function Get-UncheckedFilesAndRemoveDeletedFilesFromConfig {
     return $FilesToCheck;
 }
 
-function Set-FileAsScannedOrFixed {
+function Set-FileAsScannedOrConverted {
     Param(
         [Parameter(Mandatory = $true)]
         [System.IO.FileInfo] $File,
@@ -92,4 +92,4 @@ function Get-ExistingConfig {
     return $script:ExistingConfig
 }
 
-Export-ModuleMember -Function Initialize-ConfigRepository, Set-FileAsScannedOrFixed, Get-UncheckedFilesAndRemoveDeletedFilesFromConfig, Save-ConfigToFileAndResetRepository, Get-ExistingConfig
+Export-ModuleMember -Function Initialize-ConfigRepository, Set-FileAsScannedOrConverted, Get-UncheckedFilesAndRemoveDeletedFilesFromConfig, Save-ConfigToFileAndResetRepository, Get-ExistingConfig

@@ -7,9 +7,9 @@ using module ".\ScriptVersionMigrator.psm1"
 # Variables
 $LocationToSearch = "/media";
 $ConfigDirectory = "/config"
-$ProblematicAudioFormats = Get-StringArrayEnvVariable -Name "PROBLEMATIC_AUDIO_FORMATS" -DefaultValue @("truehd", "eac3")
+$AudioFormatDestination = Get-StringEnvVariable -Name "AUDIO_FORMAT_DESTINATION" -DefaultValue "ac3"
+$AudioFormatsToConvert = Get-StringArrayEnvVariable -Name "AUDIO_FORMATS_TO_CONVERT" -DefaultValue @("truehd", "eac3")
 $WaitBetweenScansInSeconds = Get-IntEnvVariable -Name "WAIT_BETWEEN_SCANS_IN_SECONDS" -DefaultValue 43200
-$AmendedAudioFormat = Get-StringEnvVariable -Name "AMENDED_AUDIO_FORMAT" -DefaultValue "ac3"
 $CurrentScriptVersion = "1.1.0"
 
 function Convert-File {
@@ -19,9 +19,9 @@ function Convert-File {
     )
 
     Write-Host "Checking file: $File"
-    $AnalyzedAudioStreams = Get-AnalyzedAudioStreams -File $File -ProblematicAudioFormats $ProblematicAudioFormats
+    $AnalyzedAudioStreams = Get-AnalyzedAudioStreams -File $File -AudioFormatsToConvert $AudioFormatsToConvert
     if ($null -eq $AnalyzedAudioStreams) {
-        Set-FileAsScannedOrFixed $File "N/A"
+        Set-FileAsScannedOrConverted $File "N/A"
         Write-Host "Not a media file. Skipping file: '$File'"
         Write-Host "-------------------------"
         continue;
@@ -29,31 +29,31 @@ function Convert-File {
     
     if ($AnalyzedAudioStreams.Length -eq 0) {
         $Duration = Get-MediaDuration $File
-        Set-FileAsScannedOrFixed $File $Duration
+        Set-FileAsScannedOrConverted $File $Duration
         Write-Host "No audio found. Skipping file: '$File'"
         Write-Host "-------------------------"
         continue;
     }
 
     Write-Host "Found audio formats: '$(($AnalyzedAudioStreams | Select-Object -ExpandProperty codecName) -join ", ")'"
-    if (($AnalyzedAudioStreams | Where-Object { $_.IsProblematic }).Length -eq 0) {
+    if (($AnalyzedAudioStreams | Where-Object { $_.ShouldBeConverted }).Length -eq 0) {
         $Duration = Get-MediaDuration $File
-        Set-FileAsScannedOrFixed $File $Duration
-        Write-Host "No issues found. Skipping file: '$File'"
+        Set-FileAsScannedOrConverted $File $Duration
+        Write-Host "No conversion needed. Skipping file: '$File'"
         Write-Host "-------------------------"
         continue;
     }
 
-    Write-Host "Trying to automatically fix: '$File'"
+    Write-Host "Trying to automatically convert: '$File'"
     $OriginalFileLength = $File.Length;
     $OriginalFileLastWriteTimeUtc = $File.LastWriteTimeUtc;
     $NewFileName = Join-Path $File.DirectoryName "$($File.BaseName)-1$($File.Extension)"
-    $ConversionResult = Convert-ProblematicAudioStreams -OriginalFile $File -NewFileName $NewFileName -AnalyzedAudioStreams $AnalyzedAudioStreams -AmendedAudioFormat $AmendedAudioFormat
+    $ConversionResult = Convert-AudioStreams -OriginalFile $File -NewFileName $NewFileName -AnalyzedAudioStreams $AnalyzedAudioStreams -AudioFormatDestination $AudioFormatDestination
     if ($ConversionResult.ExitCode) {
-        Write-Host "Failed to automatically resolve the issue with file: '$File'" 
+        Write-Host "Failed to automatically convert the file: '$File'" 
         Write-Host $ConversionResult.Output
         Remove-Item -Path $NewFileName -Force -ErrorAction Ignore
-        Send-TranscodingFailureEmail -File $File -AnalyzedAudioStreams $AnalyzedAudioStreams -AmendedAudioFormat $AmendedAudioFormat -Logs $ConversionResult.Output
+        Send-TranscodingFailureEmail -File $File -AnalyzedAudioStreams $AnalyzedAudioStreams -AudioFormatDestination $AudioFormatDestination -Logs $ConversionResult.Output
         Write-Host "-------------------------"
         continue;
     }
@@ -64,8 +64,8 @@ function Convert-File {
         Rename-Item -Path $NewFileName -NewName $File.Name
         $File.Refresh();
         $Duration = Get-MediaDuration $File
-        Set-FileAsScannedOrFixed $File $Duration
-        Write-Host "File has been fixed."
+        Set-FileAsScannedOrConverted $File $Duration
+        Write-Host "File has been converted."
         Write-Host "-------------------------"
     }
     else { 

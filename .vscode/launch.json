@@ -5,10 +5,10 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "AudioFixer",
+            "name": "AudioConverter",
             "type": "PowerShell",
             "request": "launch",
-            "script": "${workspaceFolder}/src/AudioFixer.ps1"
+            "script": "${workspaceFolder}/src/AudioConverter.ps1"
         }
     ]
 }

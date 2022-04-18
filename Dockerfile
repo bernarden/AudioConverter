@@ -21,5 +21,5 @@ COPY ./src /script
 
 VOLUME /media
 VOLUME /config
-ENTRYPOINT pwsh /script/AudioFixer.ps1
+ENTRYPOINT pwsh /script/AudioConverter.ps1
 

@@ -50,7 +50,7 @@ function Send-TranscodingFailureEmail {
         [AnalyzedAudioStream[]] $AnalyzedAudioStreams,
         
         [Parameter(Mandatory = $true)]
-        [string] $AmendedAudioFormat,
+        [string] $AudioFormatDestination,
 
         [Parameter(Mandatory = $true)]
         [string] $Logs
@@ -63,10 +63,10 @@ function Send-TranscodingFailureEmail {
     try {
         $transcodingSettings = "";
         foreach ($AnalyzedAudioStream in $AnalyzedAudioStreams) {
-            if ($AnalyzedAudioStream.IsProblematic) {
+            if ($AnalyzedAudioStream.ShouldBeConverted) {
                 $transcodingSettings += @"
                             <li>
-                                <div >$($AnalyzedAudioStream.CodecName) => $($AmendedAudioFormat)</div>
+                                <div >$($AnalyzedAudioStream.CodecName) => $($AudioFormatDestination)</div>
                             </li>
 "@
             }

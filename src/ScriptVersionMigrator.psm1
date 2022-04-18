@@ -20,7 +20,7 @@ function Move-ScriptToNewVersion {
             if ((Test-Path $CheckedFile.FullName)) {
                 $Duration = Get-MediaDuration $CheckedFile.FullName
                 $File = $(Get-Item $CheckedFile.FullName)
-                Set-FileAsScannedOrFixed $File $Duration
+                Set-FileAsScannedOrConverted $File $Duration
             }
             
         }

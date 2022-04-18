@@ -6,7 +6,7 @@ function Get-AnalyzedAudioStreams {
         [System.IO.FileInfo] $File,
 
         [Parameter(Mandatory = $true)]
-        [string[]] $ProblematicAudioFormats
+        [string[]] $AudioFormatsToConvert
     )
 
     $mediaFileInfo = ffprobe -v quiet -print_format json -show_streams "$File" | ConvertFrom-Json
@@ -19,15 +19,15 @@ function Get-AnalyzedAudioStreams {
     $audioStreamIndex = 0;
     foreach ($audioSteam in $audioStreams) {
         $checkedAudioStream = [AnalyzedAudioStream]@{
-            fileStreamIndex  = $audioSteam.index
-            audioStreamIndex = $audioStreamIndex++ 
-            codecName        = $audioSteam.codec_name
-            isProblematic    = $false;
+            fileStreamIndex     = $audioSteam.index
+            audioStreamIndex    = $audioStreamIndex++ 
+            codecName           = $audioSteam.codec_name
+            ShouldBeConverted   = $false;
         };
         $checkedAudioStreams += $checkedAudioStream;
-        foreach ($problematicAudioFormat in $ProblematicAudioFormats) {
-            if ($audioSteam.codec_name -like "*$problematicAudioFormat*") {
-                $checkedAudioStream.isProblematic = $true;
+        foreach ($AudioFormatToConvert in $AudioFormatsToConvert) {
+            if ($audioSteam.codec_name -like "*$AudioFormatToConvert*") {
+                $checkedAudioStream.ShouldBeConverted = $true;
                 break;
             }
         }
@@ -35,7 +35,7 @@ function Get-AnalyzedAudioStreams {
     return $checkedAudioStreams;
 }
 
-function Convert-ProblematicAudioStreams {
+function Convert-AudioStreams {
     Param(
         [Parameter(Mandatory = $true)]
         [System.IO.FileInfo] $OriginalFile,
@@ -47,16 +47,16 @@ function Convert-ProblematicAudioStreams {
         [AnalyzedAudioStream[]] $AnalyzedAudioStreams,
         
         [Parameter(Mandatory = $true)]
-        [string] $AmendedAudioFormat
+        [string] $AudioFormatDestination
     )
 
     $AudioArguments = @();
-    $ProblematicAudioStreams = $AnalyzedAudioStreams | Where-Object { $_.isProblematic };
-    if ($AnalyzedAudioStreams.Length -gt 0 -and $AnalyzedAudioStreams.Length -ne $ProblematicAudioStreams.Length) {
+    $AudioStreamsToConvert = $AnalyzedAudioStreams | Where-Object { $_.ShouldBeConverted };
+    if ($AnalyzedAudioStreams.Length -gt 0 -and $AnalyzedAudioStreams.Length -ne $AudioStreamsToConvert.Length) {
         $AudioArguments += "-c:a", "copy";
     }
-    foreach ($ProblematicAudioStream in $ProblematicAudioStreams) {
-        $AudioArguments += "-c:a:$($ProblematicAudioStream.audioStreamIndex)", $AmendedAudioFormat;
+    foreach ($AudioStreamToConvert in $AudioStreamsToConvert) {
+        $AudioArguments += "-c:a:$($AudioStreamToConvert.audioStreamIndex)", $AudioFormatDestination;
     }
 
     $Output = (ffmpeg -y -i "$OriginalFile" -map 0 -c:v copy $AudioArguments -c:s copy "$NewFileName" *>&1) | Out-String;
@@ -79,4 +79,4 @@ function Get-MediaDuration {
     return "N/A"
 }
 
-Export-ModuleMember -Function Get-AnalyzedAudioStreams, Convert-ProblematicAudioStreams, Get-MediaDuration
+Export-ModuleMember -Function Get-AnalyzedAudioStreams, Convert-AudioStreams, Get-MediaDuration

@@ -1,4 +1,4 @@
-ARG FFMPEG_VERSION=4.4-ubuntu2004
+ARG FFMPEG_VERSION=5.0-ubuntu2004
 FROM jrottenberg/ffmpeg:${FFMPEG_VERSION} AS base
 
 RUN apt-get update \

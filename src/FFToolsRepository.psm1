@@ -6,7 +6,7 @@ function Get-AnalyzedAudioStreams {
         [System.IO.FileInfo] $File,
 
         [Parameter(Mandatory = $true)]
-        [string[]] $AudioFormatsToConvert
+        [string[]] $AudioCodecsToConvert
     )
 
     $mediaFileInfo = ffprobe -v quiet -print_format json -show_streams "$File" | ConvertFrom-Json
@@ -17,22 +17,39 @@ function Get-AnalyzedAudioStreams {
 
     $checkedAudioStreams = @();
     $audioStreamIndex = 0;
-    foreach ($audioSteam in $audioStreams) {
+    ForEach ($audioSteam in $audioStreams) {
         $checkedAudioStream = [AnalyzedAudioStream]@{
-            fileStreamIndex     = $audioSteam.index
-            audioStreamIndex    = $audioStreamIndex++ 
-            codecName           = $audioSteam.codec_name
-            ShouldBeConverted   = $false;
+            FileStreamIndex   = $audioSteam.index
+            AudioStreamIndex  = $audioStreamIndex++ 
+            CodecName         = $audioSteam.codec_name
+            ShouldBeConverted = Get-IsConversionRequired $audioSteam.codec_name $AudioCodecsToConvert
         };
         $checkedAudioStreams += $checkedAudioStream;
-        foreach ($AudioFormatToConvert in $AudioFormatsToConvert) {
-            if ($audioSteam.codec_name -like "*$AudioFormatToConvert*") {
-                $checkedAudioStream.ShouldBeConverted = $true;
-                break;
+    }
+
+    return , $checkedAudioStreams;
+}
+
+function Get-IsConversionRequired {
+    Param(
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
+        [string[]] $AudioCodecsInUse,
+
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
+        [string[]] $AudioCodecsToConvert
+    )
+
+    ForEach ($AudioCodecInUse in $AudioCodecsInUse) {
+        ForEach ($AudioCodecToConvert in $AudioCodecsToConvert) {
+            if ($AudioCodecInUse -like "*$AudioCodecToConvert*") {
+                return $true;
             }
         }
     }
-    return $checkedAudioStreams;
+
+    return $false;
 }
 
 function Convert-AudioStreams {
@@ -47,7 +64,7 @@ function Convert-AudioStreams {
         [AnalyzedAudioStream[]] $AnalyzedAudioStreams,
         
         [Parameter(Mandatory = $true)]
-        [string] $AudioFormatDestination
+        [string] $AudioCodecDestination
     )
 
     $AudioArguments = @();
@@ -55,8 +72,8 @@ function Convert-AudioStreams {
     if ($AnalyzedAudioStreams.Length -gt 0 -and $AnalyzedAudioStreams.Length -ne $AudioStreamsToConvert.Length) {
         $AudioArguments += "-c:a", "copy";
     }
-    foreach ($AudioStreamToConvert in $AudioStreamsToConvert) {
-        $AudioArguments += "-c:a:$($AudioStreamToConvert.audioStreamIndex)", $AudioFormatDestination;
+    ForEach ($AudioStreamToConvert in $AudioStreamsToConvert) {
+        $AudioArguments += "-c:a:$($AudioStreamToConvert.audioStreamIndex)", $AudioCodecDestination;
     }
 
     $Output = (ffmpeg -y -i "$OriginalFile" -map 0 -c:v copy $AudioArguments -c:s copy "$NewFileName" *>&1) | Out-String;
@@ -73,10 +90,10 @@ function Get-MediaDuration {
     )
 
     $Output = (ffprobe -i "$File" -show_format  -v quiet *>&1) | Out-String;
-    if($Output -match "duration=(\d+.\d+)"){
+    if ($Output -match "duration=(\d+.\d+)") {
         return $Matches[1]
     }
     return "N/A"
 }
 
-Export-ModuleMember -Function Get-AnalyzedAudioStreams, Convert-AudioStreams, Get-MediaDuration
+Export-ModuleMember -Function Get-AnalyzedAudioStreams, Get-IsConversionRequired, Convert-AudioStreams, Get-MediaDuration

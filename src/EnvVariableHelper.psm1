@@ -7,7 +7,7 @@ function Get-IntEnvVariable {
     )
 
     $Argument = (Get-ChildItem -Path "Env:$Name" -ErrorAction SilentlyContinue).Value;
-    if(!$Argument -and $PSBoundParameters.ContainsKey("DefaultValue")){
+    if (!$Argument -and $PSBoundParameters.ContainsKey("DefaultValue")) {
         return $DefaultValue
     }
     return [int]$Argument;
@@ -22,7 +22,7 @@ function Get-StringEnvVariable {
     )
 
     $Argument = (Get-ChildItem -Path "Env:$Name" -ErrorAction SilentlyContinue).Value;
-    if(!$Argument -and $PSBoundParameters.ContainsKey("DefaultValue")){
+    if (!$Argument -and $PSBoundParameters.ContainsKey("DefaultValue")) {
         return $DefaultValue
     }
     return [string]$Argument;
@@ -37,7 +37,7 @@ function Get-BooleanEnvVariable {
     )
 
     $Argument = (Get-ChildItem -Path "Env:$Name" -ErrorAction SilentlyContinue).Value;
-    if(!$Argument -and $PSBoundParameters.ContainsKey("DefaultValue")){
+    if (!$Argument -and $PSBoundParameters.ContainsKey("DefaultValue")) {
         return $DefaultValue
     }
     return [System.Convert]::ToBoolean($Argument);
@@ -52,8 +52,8 @@ function Get-StringArrayEnvVariable {
     )
 
     $Argument = (Get-ChildItem -Path "Env:$Name" -ErrorAction SilentlyContinue).Value;
-    if(!$Argument){
-        if($PSBoundParameters.ContainsKey("DefaultValue")){
+    if (!$Argument) {
+        if ($PSBoundParameters.ContainsKey("DefaultValue")) {
             return $DefaultValue
         }
         return @();

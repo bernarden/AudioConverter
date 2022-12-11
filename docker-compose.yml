@@ -10,8 +10,8 @@ services:
       - ./:/media
       - ./:/config
     environment:
-      - AUDIO_FORMAT_DESTINATION=ac3
-      - AUDIO_FORMATS_TO_CONVERT=truehd, eac3
+      - AUDIO_CODEC_DESTINATION=ac3
+      - AUDIO_CODECS_TO_CONVERT=truehd, eac3
       - WAIT_BETWEEN_SCANS_IN_SECONDS=43200
       - EMAIL_CONFIG_FROM_EMAIL_ADDRESS=username@gmail.com
       - EMAIL_CONFIG_TO_EMAIL_ADDRESSES=username@gmail.com

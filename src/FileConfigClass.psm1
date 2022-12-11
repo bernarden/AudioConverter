@@ -1,4 +1,4 @@
-class Config {
+class FileConfig {
     [CheckedFile[]] $CheckedFiles
     [String] $Version
 }
@@ -8,4 +8,5 @@ class CheckedFile {
     [DateTime] $LastWriteTimeUtc
     [Int64] $Length
     [String] $Duration
+    [String[]] $AudioCodecs
 }

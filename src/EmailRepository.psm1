@@ -50,7 +50,7 @@ function Send-TranscodingFailureEmail {
         [AnalyzedAudioStream[]] $AnalyzedAudioStreams,
         
         [Parameter(Mandatory = $true)]
-        [string] $AudioFormatDestination,
+        [string] $AudioCodecDestination,
 
         [Parameter(Mandatory = $true)]
         [string] $Logs
@@ -62,11 +62,11 @@ function Send-TranscodingFailureEmail {
 
     try {
         $transcodingSettings = "";
-        foreach ($AnalyzedAudioStream in $AnalyzedAudioStreams) {
+        ForEach ($AnalyzedAudioStream in $AnalyzedAudioStreams) {
             if ($AnalyzedAudioStream.ShouldBeConverted) {
                 $transcodingSettings += @"
                             <li>
-                                <div >$($AnalyzedAudioStream.CodecName) => $($AudioFormatDestination)</div>
+                                <div >$($AnalyzedAudioStream.CodecName) => $($AudioCodecDestination)</div>
                             </li>
 "@
             }
@@ -169,7 +169,7 @@ function New-Message {
     $From = New-Object MimeKit.MailboxAddress $FromEmailAddress
     $Message.From.Add($From);
 
-    foreach ($ToEmailAddress in $ToEmailAddresses) {
+    ForEach ($ToEmailAddress in $ToEmailAddresses) {
         $To = New-Object MimeKit.MailboxAddress $ToEmailAddress
         $Message.To.Add($To);
     }

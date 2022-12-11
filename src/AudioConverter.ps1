@@ -4,13 +4,17 @@ using module ".\EmailRepository.psm1"
 using module ".\EnvVariableHelper.psm1"
 using module ".\ScriptVersionMigrator.psm1"
 
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
+
 # Variables
 $LocationToSearch = "/media";
 $ConfigDirectory = "/config"
-$AudioFormatDestination = Get-StringEnvVariable -Name "AUDIO_FORMAT_DESTINATION" -DefaultValue "ac3"
-$AudioFormatsToConvert = Get-StringArrayEnvVariable -Name "AUDIO_FORMATS_TO_CONVERT" -DefaultValue @("truehd", "eac3")
+$AudioCodecsToConvert = Get-StringArrayEnvVariable -Name "AUDIO_CODECS_TO_CONVERT" -DefaultValue @("truehd", "eac3")
+$AudioCodecDestination = Get-StringEnvVariable -Name "AUDIO_CODEC_DESTINATION" -DefaultValue "ac3"
 $WaitBetweenScansInSeconds = Get-IntEnvVariable -Name "WAIT_BETWEEN_SCANS_IN_SECONDS" -DefaultValue 43200
-$CurrentScriptVersion = "1.1.0"
+$CurrentScriptVersion = "1.2.0"
+$global:IsFirstRun = $true;
 
 function Convert-File {
     Param(
@@ -18,10 +22,11 @@ function Convert-File {
         [System.IO.FileInfo] $File
     )
 
+    Write-Host "-------------------------"
     Write-Host "Checking file: $File"
-    $AnalyzedAudioStreams = Get-AnalyzedAudioStreams -File $File -AudioFormatsToConvert $AudioFormatsToConvert
+    $AnalyzedAudioStreams = Get-AnalyzedAudioStreams -File $File -AudioCodecsToConvert $AudioCodecsToConvert
     if ($null -eq $AnalyzedAudioStreams) {
-        Set-FileAsScannedOrConverted $File "N/A"
+        Set-FileAsScannedOrConverted $File "N/A" @()
         Write-Host "Not a media file. Skipping file: '$File'"
         Write-Host "-------------------------"
         continue;
@@ -29,16 +34,17 @@ function Convert-File {
     
     if ($AnalyzedAudioStreams.Length -eq 0) {
         $Duration = Get-MediaDuration $File
-        Set-FileAsScannedOrConverted $File $Duration
+        Set-FileAsScannedOrConverted $File $Duration @()
         Write-Host "No audio found. Skipping file: '$File'"
         Write-Host "-------------------------"
         continue;
     }
 
-    Write-Host "Found audio formats: '$(($AnalyzedAudioStreams | Select-Object -ExpandProperty codecName) -join ", ")'"
-    if (($AnalyzedAudioStreams | Where-Object { $_.ShouldBeConverted }).Length -eq 0) {
+    $OriginalAudioCodecs = @($AnalyzedAudioStreams | Select-Object -ExpandProperty CodecName);
+    Write-Host "Found audio codecs: '$($OriginalAudioCodecs -join ", ")'"
+    if (($AnalyzedAudioStreams | Where-Object { $_.ShouldBeConverted } | Measure-Object).Count -eq 0) {
         $Duration = Get-MediaDuration $File
-        Set-FileAsScannedOrConverted $File $Duration
+        Set-FileAsScannedOrConverted $File $Duration $OriginalAudioCodecs
         Write-Host "No conversion needed. Skipping file: '$File'"
         Write-Host "-------------------------"
         continue;
@@ -48,12 +54,12 @@ function Convert-File {
     $OriginalFileLength = $File.Length;
     $OriginalFileLastWriteTimeUtc = $File.LastWriteTimeUtc;
     $NewFileName = Join-Path $File.DirectoryName "$($File.BaseName)-1$($File.Extension)"
-    $ConversionResult = Convert-AudioStreams -OriginalFile $File -NewFileName $NewFileName -AnalyzedAudioStreams $AnalyzedAudioStreams -AudioFormatDestination $AudioFormatDestination
+    $ConversionResult = Convert-AudioStreams -OriginalFile $File -NewFileName $NewFileName -AnalyzedAudioStreams $AnalyzedAudioStreams -AudioCodecDestination $AudioCodecDestination
     if ($ConversionResult.ExitCode) {
         Write-Host "Failed to automatically convert the file: '$File'" 
         Write-Host $ConversionResult.Output
         Remove-Item -Path $NewFileName -Force -ErrorAction Ignore
-        Send-TranscodingFailureEmail -File $File -AnalyzedAudioStreams $AnalyzedAudioStreams -AudioFormatDestination $AudioFormatDestination -Logs $ConversionResult.Output
+        Send-TranscodingFailureEmail -File $File -AnalyzedAudioStreams $AnalyzedAudioStreams -AudioCodecDestination $AudioCodecDestination -Logs $ConversionResult.Output
         Write-Host "-------------------------"
         continue;
     }
@@ -64,7 +70,9 @@ function Convert-File {
         Rename-Item -Path $NewFileName -NewName $File.Name
         $File.Refresh();
         $Duration = Get-MediaDuration $File
-        Set-FileAsScannedOrConverted $File $Duration
+        $NewAnalyzedAudioStreams = Get-AnalyzedAudioStreams -File $File -AudioCodecsToConvert $AudioCodecsToConvert
+        $NewAudioCodecs = @($NewAnalyzedAudioStreams | Select-Object -ExpandProperty CodecName);
+        Set-FileAsScannedOrConverted $File $Duration $NewAudioCodecs
         Write-Host "File has been converted."
         Write-Host "-------------------------"
     }
@@ -76,9 +84,16 @@ function Convert-File {
 }
 
 function Get-FilesToCheck {
+    Write-Host "Scanning for media files.";
     $AllFiles = @(Get-ChildItem $LocationToSearch -Include "*.*" -Recurse -File);
+    
+    if ($global:IsFirstRun) {
+        Write-Host "Checking if any previously tracked files require a conversion." ;
+        Remove-PreviouslyCheckedFilesFromConfigIfConversionIsRequired 
+        $global:IsFirstRun = $false;
+    }
     $AllUncheckedFiles = Get-UncheckedFilesAndRemoveDeletedFilesFromConfig $AllFiles
-    return $AllUncheckedFiles;
+    return , $AllUncheckedFiles;
 }
 
 function New-DirectoryIfDoesNotExist {
@@ -93,12 +108,15 @@ function New-DirectoryIfDoesNotExist {
 }
 
 function Main {
+    Write-Host "Starting up."
     New-DirectoryIfDoesNotExist -DirectoryPath $LocationToSearch
     New-DirectoryIfDoesNotExist -DirectoryPath $ConfigDirectory
+    
     Initialize-EmailRepository
-    Initialize-ConfigRepository -ConfigDirectory $ConfigDirectory -CurrentVersion $CurrentScriptVersion
-
+    Initialize-ConfigRepository -ConfigDirectory $ConfigDirectory -CurrentVersion $CurrentScriptVersion -AudioCodecsToConvert $AudioCodecsToConvert
+    
     Move-ScriptToNewVersion -CurrentVersion $CurrentScriptVersion
+    Write-Host "-------------------------"
 
     while ($true) {
         $FilesToCheck = Get-FilesToCheck
@@ -111,7 +129,10 @@ function Main {
             }
         }
         Save-ConfigToFileAndResetRepository
-        Write-Host "Scanning is complete. Sleeping for $WaitBetweenScansInSeconds seconds."
+        Write-Host "Scanning is complete."
+        $NextRunDateTime = (Get-Date).AddSeconds($WaitBetweenScansInSeconds).ToString("o")
+        Write-Host "Sleeping for $WaitBetweenScansInSeconds seconds. Next run scheduled for $NextRunDateTime" 
+        Write-Host "-------------------------"
         Start-Sleep -s $WaitBetweenScansInSeconds
     }
 }

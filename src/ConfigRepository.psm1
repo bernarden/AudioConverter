@@ -1,4 +1,5 @@
-using module ".\ConfigClass.psm1"
+using module ".\FileConfigClass.psm1"
+using module ".\FFToolsRepository.psm1"
 
 $ConfigFileName = "config.json"
 
@@ -8,15 +9,19 @@ function Initialize-ConfigRepository {
         [String] $ConfigDirectory,
 
         [Parameter(Mandatory = $true)]
-        [String] $CurrentVersion
+        [String] $CurrentVersion,
+
+        [Parameter(Mandatory = $true)]
+        [string[]] $AudioCodecsToConvert
     )
 
     $script:Version = $CurrentVersion
+    $script:AudioCodecsToConvert = $AudioCodecsToConvert
     $script:NewConfig = Get-DefaultConfig
     $script:ConfigFileFullName = Join-Path $ConfigDirectory $ConfigFileName
     if (!(Test-Path $script:ConfigFileFullName)) {
         $script:ExistingConfig = Get-DefaultConfig
-        $script:ExistingConfigJson = $script:ExistingConfig | ConvertTo-Json -Compress
+        $script:ExistingConfigJson = $script:ExistingConfig | ConvertTo-Json -Depth 5 -Compress
         New-Item -path $ConfigDirectory -name $ConfigFileName -type "file" -value $script:ExistingConfigJson > $null
     }
     else {
@@ -26,7 +31,7 @@ function Initialize-ConfigRepository {
 }
 
 function Get-DefaultConfig {
-    return [Config]@{
+    return [FileConfig]@{
         CheckedFiles = @()
         Version      = $script:Version
     }
@@ -40,7 +45,7 @@ function Get-UncheckedFilesAndRemoveDeletedFilesFromConfig {
     )
 
     $PreviouslyCheckedFilesDictionary = @{ }
-    foreach ($CheckedFile in $script:ExistingConfig.CheckedFiles) {
+    ForEach ($CheckedFile in $script:ExistingConfig.CheckedFiles) {
         $PreviouslyCheckedFilesDictionary[$CheckedFile.FullName] = $CheckedFile
     }
 
@@ -57,7 +62,18 @@ function Get-UncheckedFilesAndRemoveDeletedFilesFromConfig {
         }
     }
 
-    return $FilesToCheck;
+    return , $FilesToCheck;
+}
+
+function Remove-PreviouslyCheckedFilesFromConfigIfConversionIsRequired {
+    ForEach ($CheckedFile in $script:ExistingConfig.CheckedFiles) {
+        $IsConversionRequired = Get-IsConversionRequired $CheckedFile.AudioCodecs $script:AudioCodecsToConvert
+        if (!$IsConversionRequired) {
+            $script:NewConfig.CheckedFiles += $CheckedFile
+        }
+    }
+    
+    Save-ConfigToFileAndResetRepository
 }
 
 function Set-FileAsScannedOrConverted {
@@ -66,7 +82,11 @@ function Set-FileAsScannedOrConverted {
         [System.IO.FileInfo] $File,
 
         [Parameter(Mandatory = $true)]
-        [string] $Duration
+        [string] $Duration,
+
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
+        [string[]] $AudioCodecs
     )
 
     $script:NewConfig.CheckedFiles += [CheckedFile]@{
@@ -74,11 +94,12 @@ function Set-FileAsScannedOrConverted {
         LastWriteTimeUtc = $File.LastWriteTimeUtc
         Length           = $File.Length
         Duration         = $Duration
+        AudioCodecs      = $AudioCodecs
     };
 }
 
 function Save-ConfigToFileAndResetRepository {
-    $NewConfigJson = $script:NewConfig | ConvertTo-Json -Compress
+    $NewConfigJson = $script:NewConfig | ConvertTo-Json -Depth 5 -Compress
     if (!$script:ExistingConfigJson.Equals($NewConfigJson)) {
         Set-Content -Path $script:ConfigFileFullName -Value $NewConfigJson
         $script:ExistingConfig = $script:NewConfig 
@@ -92,4 +113,4 @@ function Get-ExistingConfig {
     return $script:ExistingConfig
 }
 
-Export-ModuleMember -Function Initialize-ConfigRepository, Set-FileAsScannedOrConverted, Get-UncheckedFilesAndRemoveDeletedFilesFromConfig, Save-ConfigToFileAndResetRepository, Get-ExistingConfig
+Export-ModuleMember -Function Initialize-ConfigRepository, Set-FileAsScannedOrConverted, Remove-PreviouslyCheckedFilesFromConfigIfConversionIsRequired, Get-UncheckedFilesAndRemoveDeletedFilesFromConfig, Save-ConfigToFileAndResetRepository, Get-ExistingConfig

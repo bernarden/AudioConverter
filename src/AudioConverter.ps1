@@ -112,6 +112,12 @@ function Main {
     New-DirectoryIfDoesNotExist -DirectoryPath $LocationToSearch
     New-DirectoryIfDoesNotExist -DirectoryPath $ConfigDirectory
     
+    if ( $AudioCodecsToConvert -contains $AudioCodecDestination) {
+        Write-Host "AudioCodecsToConvert ('$($AudioCodecsToConvert -join ", ")') contains AudioCodecDestination ($AudioCodecDestination) and therefore will cause infinite loop."
+        Write-Host "Exiting."
+        exit;
+    }
+
     Initialize-EmailRepository
     Initialize-ConfigRepository -ConfigDirectory $ConfigDirectory -CurrentVersion $CurrentScriptVersion -AudioCodecsToConvert $AudioCodecsToConvert
     

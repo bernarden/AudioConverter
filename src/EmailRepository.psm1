@@ -1,26 +1,26 @@
 using module ".\dlls\BouncyCastle.Crypto.dll"
 using module ".\dlls\MimeKit.dll"
 using module ".\dlls\MailKit.dll"
-using module ".\AnalyzedAudioStreamClass.psm1"
-using module ".\EnvVariableHelper.psm1"
+using module ".\classes\AnalyzedAudioStreamClass.psm1"
+using module ".\classes\EmailSettingsClass.psm1"
 
 function Initialize-EmailRepository {
-    $script:FromEmailAddress = Get-StringEnvVariable -Name "EMAIL_CONFIG_FROM_EMAIL_ADDRESS"
-    $script:ToEmailAddresses = Get-StringArrayEnvVariable -Name "EMAIL_CONFIG_TO_EMAIL_ADDRESSES"
-    $script:UserName = Get-StringEnvVariable -Name "EMAIL_CONFIG_USERNAME"
-    $script:Password = Get-StringEnvVariable -Name "EMAIL_CONFIG_PASSWORD"
-    $script:SmtpServer = Get-StringEnvVariable -Name "EMAIL_CONFIG_SMTP_SERVER"
-    $script:SmtpPort = Get-IntEnvVariable -Name "EMAIL_CONFIG_SMTP_PORT"
-    $script:SendTestEmail = Get-BooleanEnvVariable -Name "EMAIL_CONFIG_SEND_TEST_EMAIL" 
+    Param(
+        [Parameter(Mandatory = $true)]
+        [EmailSettings] $EmailSettings
+    )
 
-    if (!$script:FromEmailAddress -or !$script:ToEmailAddresses -or !$script:UserName -or 
-        !$script:Password -or !$script:SmtpServer -or !$script:SmtpPort) {
+    $script:EmailSettings = $EmailSettings
+  
+    if (!$script:EmailSettings.Host -or !$script:EmailSettings.Port -or
+        !$script:EmailSettings.To -or !$script:EmailSettings.Sender -or 
+        !$script:EmailSettings.Username -or !$script:EmailSettings.Password) {
         Write-Host "Emailing is disabled because some or all required arguments are not specified."
         $script:EmailingDisabled = $true;
         return;
     }
     
-    if ($script:SendTestEmail) {
+    if ($script:EmailSettings.SendTestEmailOnStart) {
         Write-Host "Sending test email."
         Send-TestEmail
         Write-Host "Test email has been sent."
@@ -30,11 +30,11 @@ function Initialize-EmailRepository {
 function Send-TestEmail {
     try {
         $BodyBuilder = New-Object MimeKit.BodyBuilder;
-        $BodyBuilder.HtmlBody = "<b>This is test email.</b>";
+        $BodyBuilder.HtmlBody = "<b>This is a test email.</b>";
         $Body = $BodyBuilder.ToMessageBody();
 
-        $Message = New-Message -FromEmailAddress $script:FromEmailAddress -ToEmailAddresses $script:ToEmailAddresses -Subject "Test" -Body $Body
-        Send-Email -UserName $script:UserName -Password $script:Password -Message $Message -SmtpServer $script:SmtpServer -SmtpPort $script:SmtpPort
+        $Message = New-Message -FromEmailAddress $script:EmailSettings.Sender -ToEmailAddresses $script:EmailSettings.To -Subject "[AudioConverter] Test" -Body $Body
+        Send-Email -UserName $script:EmailSettings.Username -Password $script:EmailSettings.Password -Message $Message -SmtpServer $script:EmailSettings.Host -SmtpPort $script:EmailSettings.Port
     }
     catch { 
         Write-Host $_.Exception
@@ -109,8 +109,8 @@ $transcodingSettings
 "@;
         $Body = $BodyBuilder.ToMessageBody();
 
-        $Message = New-Message -FromEmailAddress $script:FromEmailAddress -ToEmailAddresses $script:ToEmailAddresses -Subject "Failed to transcode media file" -Body $Body
-        Send-Email -UserName $script:UserName -Password $script:Password -Message $Message -SmtpServer $script:SmtpServer -SmtpPort $script:SmtpPort
+        $Message = New-Message -FromEmailAddress $script:EmailSettings.Sender -ToEmailAddresses $script:EmailSettings.To -Subject "[AudioConverter] Failed to transcode media file" -Body $Body
+        Send-Email -UserName $script:EmailSettings.Username -Password $script:EmailSettings.Password -Message $Message -SmtpServer $script:EmailSettings.Host -SmtpPort $script:EmailSettings.Port
     }
     catch { 
         Write-Host $_.Exception

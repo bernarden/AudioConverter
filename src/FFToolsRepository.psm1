@@ -1,4 +1,4 @@
-using module ".\AnalyzedAudioStreamClass.psm1"
+using module ".\classes\AnalyzedAudioStreamClass.psm1"
 
 function Get-AnalyzedAudioStreams {
     Param(

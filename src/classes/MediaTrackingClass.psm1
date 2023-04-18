@@ -1,5 +1,5 @@
-class FileConfig {
-    [CheckedFile[]] $CheckedFiles
+class MediaTracking {
+    [Hashtable] $CheckedFiles
     [String] $Version
 }
 

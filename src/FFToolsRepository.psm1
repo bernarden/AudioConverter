@@ -89,7 +89,7 @@ function Get-MediaDuration {
         [System.IO.FileInfo] $File
     )
 
-    $Output = (ffprobe -i "$File" -show_format  -v quiet *>&1) | Out-String;
+    $Output = (ffprobe -i "$File" -show_format -v quiet *>&1) | Out-String;
     if ($Output -match "duration=(\d+.\d+)") {
         return $Matches[1]
     }

@@ -1,6 +1,7 @@
 using module ".\classes\ConversionSettingsClass.psm1"
 using module ".\classes\MediaTrackingClass.psm1"
 using module ".\FFToolsRepository.psm1"
+using module ".\OutputHelper.psm1"
 
 function Initialize-MediaTrackingRepository {
     Param(
@@ -74,7 +75,7 @@ function Get-MigratedMediaTrackingState {
     $NewMediaTracking = Get-DefaultMediaTracking -CurrentVersion $CurrentVersion -ConversionSettings $ConversionSettings
 
     if ($CurrentVersion -eq $ExistingMediaTracking.Version) {
-        Write-Host "No migration is required. Existing version: '$($CurrentVersion)'."
+        Write-Host ("No migration is required. Existing version: '$($CurrentVersion)'." | Add-Timestamp);
 
         # Map json from PSCustomObject to MediaTracking class for consistency.
         $CheckedFiles = @{}
@@ -100,11 +101,11 @@ function Get-MigratedMediaTrackingState {
         }
     }
 
-    Write-Host "Migrating from '$($ExistingMediaTracking.Version)'."
+    Write-Host ("Migrating from '$($ExistingMediaTracking.Version)'." | Add-Timestamp);
     # Complete reset of the media tracking file.
     $ExistingMediaTracking = Get-DefaultMediaTracking -CurrentVersion $CurrentVersion -ConversionSettings $ConversionSettings
     Set-Content -Path $MediaTrackingFileFullName -Value $ExistingMediaTrackingJson
-    Write-Host "All migrations are applied. Current version: '$($CurrentVersion)'."
+    Write-Host ("All migrations are applied. Current version: '$($CurrentVersion)'." | Add-Timestamp);
     return [PSCustomObject]@{
         FilePath       = $MediaTrackingFileFullName
         CurrentVersion = $CurrentVersion
@@ -156,7 +157,7 @@ function Remove-TrackedMediaFilesThatRequireConversion {
         [ConversionSettings] $ConversionSettings
     )
 
-    Write-Host "Checking if any previously tracked files require a conversion." ;
+    Write-Host ("Checking if any previously tracked files require a conversion." | Add-Timestamp);
     ForEach ($DirectoryCheckedFiles in $script:State.Existing.CheckedFiles.GetEnumerator()) {
         $MatchingSetting = $ConversionSettings.Directories | Where-Object { $_.Path -eq $DirectoryCheckedFiles.Name }
         if (!$MatchingSetting) {

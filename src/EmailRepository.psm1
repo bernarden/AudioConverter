@@ -3,6 +3,7 @@ using module ".\dlls\MimeKit.dll"
 using module ".\dlls\MailKit.dll"
 using module ".\classes\AnalyzedAudioStreamClass.psm1"
 using module ".\classes\EmailSettingsClass.psm1"
+using module ".\OutputHelper.psm1"
 
 function Initialize-EmailRepository {
     Param(
@@ -15,15 +16,15 @@ function Initialize-EmailRepository {
     if (!$script:EmailSettings.Host -or !$script:EmailSettings.Port -or
         !$script:EmailSettings.To -or !$script:EmailSettings.Sender -or 
         !$script:EmailSettings.Username -or !$script:EmailSettings.Password) {
-        Write-Host "Emailing is disabled because some or all required arguments are not specified."
+        Write-Host ("Emailing is disabled because some or all required arguments are not specified." | Add-Timestamp);
         $script:EmailingDisabled = $true;
         return;
     }
     
     if ($script:EmailSettings.SendTestEmailOnStart) {
-        Write-Host "Sending test email."
+        Write-Host ("Sending test email." | Add-Timestamp);
         Send-TestEmail
-        Write-Host "Test email has been sent."
+        Write-Host ("Test email has been sent." | Add-Timestamp);
     }
 }
 
@@ -37,7 +38,7 @@ function Send-TestEmail {
         Send-Email -UserName $script:EmailSettings.Username -Password $script:EmailSettings.Password -Message $Message -SmtpServer $script:EmailSettings.Host -SmtpPort $script:EmailSettings.Port
     }
     catch { 
-        Write-Host $_.Exception
+        Write-Host ($_.Exception | Add-Timestamp);
     }
 }
 
@@ -113,7 +114,7 @@ $transcodingSettings
         Send-Email -UserName $script:EmailSettings.Username -Password $script:EmailSettings.Password -Message $Message -SmtpServer $script:EmailSettings.Host -SmtpPort $script:EmailSettings.Port
     }
     catch { 
-        Write-Host $_.Exception
+        Write-Host ($_.Exception | Add-Timestamp);
     }
 }
 

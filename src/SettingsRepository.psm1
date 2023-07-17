@@ -2,6 +2,7 @@ using module ".\classes\ConversionSettingsClass.psm1"
 using module ".\classes\EmailSettingsClass.psm1"
 using module ".\EnvVariableHelper.psm1"
 using module ".\FFToolsRepository.psm1"
+using module ".\OutputHelper.psm1"
 
 function Initialize-SettingsRepository {
     Param(
@@ -17,8 +18,8 @@ function Initialize-SettingsRepository {
         If (!(Test-Path $SettingsExampleFilePath)) {
             Copy-Item $SettingsExampleFileName -Destination $ConfigDirectory
         }
-        Write-Host "Please create a settings file at the following path: '$SettingsFilePath'."
-        Write-Host "Exiting."
+        Write-Host ("Please create a settings file at the following path: '$SettingsFilePath'." | Add-Timestamp);
+        Write-Host ("Exiting." | Add-Timestamp);
         exit;
     }
 
@@ -47,8 +48,8 @@ function Initialize-SettingsRepository {
         };
 
         if ($Directory.From -contains $Directory.To) {
-            Write-Host "'From' setting value ('$($Directory.From -join ", ")') contains 'To' setting value ('$($Directory.To)') and therefore will cause infinite loop."
-            Write-Host "Exiting."
+            Write-Host ("'From' setting value ('$($Directory.From -join ", ")') contains 'To' setting value ('$($Directory.To)') and therefore will cause infinite loop." | Add-Timestamp);
+            Write-Host ("Exiting." | Add-Timestamp);
             exit;
         }
 

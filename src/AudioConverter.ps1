@@ -84,8 +84,9 @@ function Get-FilesToCheck {
     )
 
     Write-Host "Scanning '$DirectoryPath' for media files.";
-    $AllFiles = @(Get-ChildItem $DirectoryPath -Include "*.*" -Recurse -File);
+    $AllFiles = @(Get-ChildItem $DirectoryPath -Recurse -File);
     $AllUncheckedFiles = Get-UncheckedFilesAndRemoveDeletedFilesFromMediaTrackingFile $AllFiles $DirectoryPath
+    Write-Host "Found $($AllUncheckedFiles.length) files to process.";
     return , $AllUncheckedFiles;
 }
 

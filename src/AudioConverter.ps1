@@ -112,7 +112,7 @@ function Main {
     } 
     else {
         Write-Host ("Installing module $ModuleToInstall." | Add-Timestamp);
-        Install-Module -Name $ModuleToInstall -Force
+        Install-Module -Name $ModuleToInstall -Force -Scope CurrentUser
         Write-Host ("Importing module $ModuleToInstall." | Add-Timestamp);
         Import-Module -Name $ModuleToInstall
     }

@@ -13,7 +13,7 @@ RUN apt-get update \
   && mkdir -p /script /media /script/config \
   && chmod 777 /script /media /script/config
 
-RUN pwsh -c "Install-Module -Name powershell-yaml -Force"
+RUN pwsh -c "Install-Module -Name powershell-yaml -Force -Scope AllUsers"
 
 COPY ./src /script
 

@@ -1,6 +1,6 @@
-using module ".\classes\AnalyzedAudioStreamClass.psm1"
+using module ".\classes\AnalyzedMediaFileClass.psm1"
 
-function Get-AnalyzedAudioStreams {
+function Get-AnalyzedMediaFile {
     Param(
         [Parameter(Mandatory = $true)]
         [System.IO.FileInfo] $File,
@@ -9,25 +9,68 @@ function Get-AnalyzedAudioStreams {
         [string[]] $AudioCodecsToConvert
     )
 
-    $mediaFileInfo = ffprobe -v quiet -print_format json -show_streams "$File" | ConvertFrom-Json
-    if (!$mediaFileInfo -or !$mediaFileInfo.streams) {
-        return $null;
+    $MediaFileInfo = ffprobe -v quiet -print_format json -show_format -show_streams "$File" | ConvertFrom-Json
+    if (!$MediaFileInfo -or !$MediaFileInfo.streams -or !$MediaFileInfo.format) {
+        $AnalyzedMediaFile = [AnalyzedMediaFile]@{
+            FileName     = $File.Name
+            Duration     = "N/A"
+            Bitrate      = "N/A"
+            Size         = $File.Length
+            VideoStreams = @()
+            AudioStreams = @()
+            SubtitleStreams = @()
+            IsMediaFile  = $false
+        }
+        return $AnalyzedMediaFile;
     }
-    $audioStreams = $mediaFileInfo.streams | Where-Object { $_.codec_type -eq "audio" };
 
-    $checkedAudioStreams = @();
-    $audioStreamIndex = 0;
-    ForEach ($audioSteam in $audioStreams) {
-        $checkedAudioStream = [AnalyzedAudioStream]@{
-            FileStreamIndex   = $audioSteam.index
-            AudioStreamIndex  = $audioStreamIndex++ 
-            CodecName         = $audioSteam.codec_name
-            ShouldBeConverted = Get-IsConversionRequired $audioSteam.codec_name $AudioCodecsToConvert
+    $VideoStreams = $MediaFileInfo.streams | Where-Object { $_.codec_type -eq "video" };
+    $AnalyzedVideoStreams = @();
+    $StreamIndex = 0;
+    ForEach ($VideoStream in $VideoStreams) {
+        $AnalyzedVideoStream = [AnalyzedVideoStream]@{
+            FileStreamIndex  = $VideoStream.index
+            VideoStreamIndex = $StreamIndex++ 
+            CodecName        = $VideoStream.codec_name
         };
-        $checkedAudioStreams += $checkedAudioStream;
+        $AnalyzedVideoStreams += $AnalyzedVideoStream;
     }
 
-    return , $checkedAudioStreams;
+    $AudioStreams = $MediaFileInfo.streams | Where-Object { $_.codec_type -eq "audio" };
+    $AnalyzedAudioStreams = @();
+    $StreamIndex = 0;
+    ForEach ($AudioSteam in $AudioStreams) {
+        $AnalyzedAudioStream = [AnalyzedAudioStream]@{
+            FileStreamIndex   = $AudioSteam.index
+            AudioStreamIndex  = $StreamIndex++ 
+            CodecName         = $AudioSteam.codec_name
+            ShouldBeConverted = Get-IsConversionRequired $AudioSteam.codec_name $AudioCodecsToConvert
+        };
+        $AnalyzedAudioStreams += $AnalyzedAudioStream;
+    }
+
+    $SubtitleStreams = $MediaFileInfo.streams | Where-Object { $_.codec_type -eq "subtitle" };
+    $AnalyzedSubtitleStreams = @();
+    $StreamIndex = 0;
+    ForEach ($SubtitleSteam in $SubtitleStreams) {
+        $AnalyzedSubtitleStream = [AnalyzedSubtitleStream]@{
+            FileStreamIndex     = $SubtitleSteam.index
+            SubtitleStreamIndex = $StreamIndex++
+        };
+        $AnalyzedSubtitleStreams += $AnalyzedSubtitleStream;
+    }
+
+    $AnalyzedMediaFile = [AnalyzedMediaFile]@{
+        FileName        = $File.Name
+        Duration        = $MediaFileInfo.format.duration ? $MediaFileInfo.format.duration : "N/A"
+        Bitrate         = $MediaFileInfo.format.bit_rate ? $MediaFileInfo.format.bit_rate : "N/A"
+        Size            = $File.Length
+        VideoStreams    = $AnalyzedVideoStreams
+        AudioStreams    = $AnalyzedAudioStreams
+        SubtitleStreams = $AnalyzedSubtitleStreams
+        IsMediaFile     = $true
+    }
+    return $AnalyzedMediaFile;
 }
 
 function Get-IsConversionRequired {
@@ -83,17 +126,4 @@ function Convert-AudioStreams {
     }
 }
 
-function Get-MediaDuration {
-    Param(
-        [Parameter(Mandatory = $true)]
-        [System.IO.FileInfo] $File
-    )
-
-    $Output = (ffprobe -i "$File" -show_format -v quiet *>&1) | Out-String;
-    if ($Output -match "duration=(\d+.\d+)") {
-        return $Matches[1]
-    }
-    return "N/A"
-}
-
-Export-ModuleMember -Function Get-AnalyzedAudioStreams, Get-IsConversionRequired, Convert-AudioStreams, Get-MediaDuration
+Export-ModuleMember -Function Get-AnalyzedMediaFile, Get-IsConversionRequired, Convert-AudioStreams

@@ -1,7 +1,7 @@
 using module ".\dlls\BouncyCastle.Crypto.dll"
 using module ".\dlls\MimeKit.dll"
 using module ".\dlls\MailKit.dll"
-using module ".\classes\AnalyzedAudioStreamClass.psm1"
+using module ".\classes\AnalyzedMediaFileClass.psm1"
 using module ".\classes\EmailSettingsClass.psm1"
 using module ".\OutputHelper.psm1"
 

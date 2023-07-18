@@ -1,4 +1,5 @@
 using module ".\classes\ConversionSettingsClass.psm1"
+using module ".\classes\AnalyzedMediaFileClass.psm1"
 using module ".\EmailRepository.psm1"
 using module ".\FFToolsRepository.psm1"
 using module ".\MediaTrackingRepository.psm1"
@@ -8,55 +9,90 @@ using module ".\OutputHelper.psm1"
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
+function Get-FilesToConvert {
+    Param(
+        [Parameter()]
+        [System.IO.FileInfo[]] $FilesToCheck,
+
+        [Parameter(Mandatory = $true)]
+        [DirectoryConversionSetting] $DirectoryConversionSetting
+    )   
+    Write-Host ("Filterting out files that do not require conversion." | Add-Timestamp);
+    $FilesToConvert = [System.Collections.Concurrent.ConcurrentDictionary[System.IO.FileInfo, AnalyzedMediaFile]]::new()
+    $FilesToMarkAsChecked = [System.Collections.Concurrent.ConcurrentDictionary[System.IO.FileInfo, AnalyzedMediaFile]]::new()
+    $FilesToCheck | ForEach-Object -ThrottleLimit 2048 -Parallel {
+        $FilesToConvert = $using:FilesToConvert
+        $FilesToMarkAsChecked = $using:FilesToMarkAsChecked
+        $DirectoryConversionSetting = $using:DirectoryConversionSetting
+
+        # Hack to load all modules into new PS runspace state. https://github.com/PowerShell/PowerShell/issues/12240
+        $ScriptRoot = $using:PSScriptRoot
+        $scriptBody = @"
+using module "$ScriptRoot\classes\AnalyzedMediaFileClass.psm1"
+using module "$ScriptRoot\FFToolsRepository.psm1"
+using module "$ScriptRoot\OutputHelper.psm1"
+"@;
+        $script = [ScriptBlock]::Create($scriptBody)
+        . $script
+       
+        try {
+            $File = $_;
+            $AnalyzedMediaFile = Get-AnalyzedMediaFile -File $File -AudioCodecsToConvert $DirectoryConversionSetting.From
+
+            $NumberOfAudioStreamsToConvert = ($AnalyzedMediaFile.AudioStreams | Where-Object { $_.ShouldBeConverted } | Measure-Object).Count
+            if ($NumberOfAudioStreamsToConvert -eq 0) {
+                if ($FilesToMarkAsChecked.TryAdd($File, $AnalyzedMediaFile) -eq $false) {
+                    throw [System.Exception] "Failed mark file '$($File.Name)' as checked."
+                }
+            }
+            else {
+                if ($FilesToConvert.TryAdd($File, $AnalyzedMediaFile) -eq $false) {
+                    throw [System.Exception] "Failed to schedule file '$($File.Name)' for conversion."
+                }
+            }
+        }
+        catch { 
+            Write-Host ($_.Exception | Add-Timestamp);
+        }
+    }
+    
+    ForEach ($FileToMarkAsChecked in $FilesToMarkAsChecked.Keys) {
+        $AnalyzedMediaFile = $FilesToMarkAsChecked[$FileToMarkAsChecked]
+        $OriginalAudioCodecs = @($AnalyzedMediaFile.AudioStreams | Select-Object -ExpandProperty CodecName);
+        Set-FileAsScannedOrConverted $FileToMarkAsChecked $AnalyzedMediaFile.Duration $OriginalAudioCodecs $DirectoryConversionSetting
+    }
+
+    Write-Host ("Found $($FilesToConvert.Keys.Count) files to convert." | Add-Timestamp);
+    return $FilesToConvert
+}
+
 function Convert-File {
     Param(
         [Parameter(Mandatory = $true)]
         [System.IO.FileInfo] $File,
-        
+
+        [Parameter(Mandatory = $true)]
+        [AnalyzedMediaFile] $AnalyzedMediaFile,
+                
         [Parameter(Mandatory = $true)]
         [DirectoryConversionSetting] $DirectoryConversionSetting
     )
 
     Write-Host ("-------------------------" | Add-Timestamp);
-    Write-Host ("Checking file: $File" | Add-Timestamp);
-    $AnalyzedAudioStreams = Get-AnalyzedAudioStreams -File $File -AudioCodecsToConvert $DirectoryConversionSetting.From
-    if ($null -eq $AnalyzedAudioStreams) {
-        Set-FileAsScannedOrConverted $File "N/A" @() $DirectoryConversionSetting
-        Write-Host ("Not a media file. Skipping file: '$File'" | Add-Timestamp);
-        Write-Host ("-------------------------" | Add-Timestamp);
-        continue;
-    }
+    Write-Host ("Converting file: $File" | Add-Timestamp);
+    $AnalyzedAudioStreams = $AnalyzedMediaFile.AudioStreams
     
-    if ($AnalyzedAudioStreams.Length -eq 0) {
-        $Duration = Get-MediaDuration $File
-        Set-FileAsScannedOrConverted $File $Duration @() $DirectoryConversionSetting
-        Write-Host ("No audio found. Skipping file: '$File'" | Add-Timestamp);
-        Write-Host ("-------------------------" | Add-Timestamp);
-        continue;
-    }
-
-    $OriginalAudioCodecs = @($AnalyzedAudioStreams | Select-Object -ExpandProperty CodecName);
-    Write-Host ("Found audio codecs: '$($OriginalAudioCodecs -join ", ")'" | Add-Timestamp);
-    if (($AnalyzedAudioStreams | Where-Object { $_.ShouldBeConverted } | Measure-Object).Count -eq 0) {
-        $Duration = Get-MediaDuration $File
-        Set-FileAsScannedOrConverted $File $Duration $OriginalAudioCodecs $DirectoryConversionSetting
-        Write-Host ("No conversion needed. Skipping file: '$File'" | Add-Timestamp);
-        Write-Host ( "-------------------------" | Add-Timestamp);
-        continue;
-    }
-
-    Write-Host ("Trying to automatically convert: '$File'" | Add-Timestamp);
     $OriginalFileLength = $File.Length;
     $OriginalFileLastWriteTimeUtc = $File.LastWriteTimeUtc;
     $NewFileName = Join-Path $File.DirectoryName "$($File.BaseName)-1$($File.Extension)"
     $ConversionResult = Convert-AudioStreams -OriginalFile $File -NewFileName $NewFileName -AnalyzedAudioStreams $AnalyzedAudioStreams -AudioCodecDestination $DirectoryConversionSetting.To
     if ($ConversionResult.ExitCode) {
-        Write-Host ("Failed to automatically convert the file: '$File'" | Add-Timestamp);
+        Write-Host ("Failed to convert file: '$File'" | Add-Timestamp);
         Write-Host ($ConversionResult.Output | Add-Timestamp);
         Remove-Item -Path $NewFileName -Force -ErrorAction Ignore
         Send-TranscodingFailureEmail -File $File -AnalyzedAudioStreams $AnalyzedAudioStreams -AudioCodecDestination $DirectoryConversionSetting.To -Logs $ConversionResult.Output
         Write-Host ("-------------------------" | Add-Timestamp);
-        continue;
+        return;
     }
  
     $File.Refresh();
@@ -64,16 +100,15 @@ function Convert-File {
         Remove-Item -Path $File -Force
         Rename-Item -Path $NewFileName -NewName $File.Name
         $File.Refresh();
-        $Duration = Get-MediaDuration $File
-        $NewAnalyzedAudioStreams = Get-AnalyzedAudioStreams -File $File -AudioCodecsToConvert $DirectoryConversionSetting.From
-        $NewAudioCodecs = @($NewAnalyzedAudioStreams | Select-Object -ExpandProperty CodecName);
-        Set-FileAsScannedOrConverted $File $Duration $NewAudioCodecs $DirectoryConversionSetting
+        $AnalyzedMediaFile = Get-AnalyzedMediaFile -File $File -AudioCodecsToConvert $DirectoryConversionSetting.From
+        $NewAudioCodecs = @($AnalyzedMediaFile.AudioStreams | Select-Object -ExpandProperty CodecName);
+        Set-FileAsScannedOrConverted $File $AnalyzedMediaFile.Duration $NewAudioCodecs $DirectoryConversionSetting
         Write-Host ("File has been converted." | Add-Timestamp);
         Write-Host ("-------------------------" | Add-Timestamp);
     }
     else { 
         Remove-Item -Path $NewFileName -Force
-        Write-Host ("File has been changed during transcoding. Try again next time." | Add-Timestamp);
+        Write-Host ("File has been changed during conversion. Try again next time." | Add-Timestamp);
         Write-Host( "-------------------------" | Add-Timestamp);
     }
 }
@@ -87,7 +122,7 @@ function Get-FilesToCheck {
     Write-Host ("Scanning '$DirectoryPath' for media files." | Add-Timestamp);
     $AllFiles = @(Get-ChildItem $DirectoryPath -Recurse -File);
     $AllUncheckedFiles = Get-UncheckedFilesAndRemoveDeletedFilesFromMediaTrackingFile $AllFiles $DirectoryPath
-    Write-Host ("Found $($AllUncheckedFiles.length) files to process." | Add-Timestamp);
+    Write-Host ("Found $($AllUncheckedFiles.Length) files to check." | Add-Timestamp);
     return , $AllUncheckedFiles;
 }
 
@@ -128,14 +163,26 @@ function Main {
 
     $EmailSettings = Get-EmailSettings
     Initialize-EmailRepository -EmailSettings $EmailSettings
-    Write-Host ("-------------------------" | Add-Timestamp);
 
     while ($true) {
+        Write-Host ("-------------------------" | Add-Timestamp);
         ForEach ($DirectoryConversionSetting in $ConversionSettings.Directories) {
             $FilesToCheck = Get-FilesToCheck -DirectoryPath $DirectoryConversionSetting.Path
-            ForEach ($File in $FilesToCheck) {
+            if ($FilesToCheck.Length -eq 0) {
+                Write-Host ("-------------------------" | Add-Timestamp);
+                continue;
+            }
+        
+            $FilesToConvertDict = Get-FilesToConvert -FilesToCheck $FilesToCheck -DirectoryConversionSetting $DirectoryConversionSetting
+            if ($FilesToConvertDict.Count -eq 0) {
+                Write-Host ("-------------------------" | Add-Timestamp);
+                continue;
+            }
+
+            ForEach ($FileToConvert in $FilesToConvertDict.Keys) {
                 try {
-                    Convert-File -File $File -DirectoryConversionSetting $DirectoryConversionSetting
+                    $AnalyzedMediaFile = $FilesToConvertDict[$FileToConvert]
+                    Convert-File -File $FileToConvert -AnalyzedMediaFile $AnalyzedMediaFile -DirectoryConversionSetting $DirectoryConversionSetting
                 }
                 catch { 
                     Write-Host ($_.Exception | Add-Timestamp);
@@ -147,7 +194,6 @@ function Main {
         Write-Host ("Scanning is complete." | Add-Timestamp);
         $NextRunDateTime = (Get-Date).AddSeconds($ConversionSettings.WaitBetweenScansInSeconds).ToString("s")
         Write-Host ("Sleeping for $($ConversionSettings.WaitBetweenScansInSeconds) seconds. Next run scheduled for $NextRunDateTime" | Add-Timestamp);
-        Write-Host ("-------------------------" | Add-Timestamp);
         Start-Sleep -s $ConversionSettings.WaitBetweenScansInSeconds
     }
 }

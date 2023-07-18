@@ -29,7 +29,7 @@ function Initialize-MediaTrackingRepository {
             Existing       = $ExistingMediaTracking
             ExistingJson   = $ExistingMediaTracking | ConvertTo-Json -Depth 10 -Compress
         }
-        New-Item -path $ConfigDirectory -name $MediaTrackingFileName -type "file" -value $script:State.ExistingJson > $null
+        New-Item -Path $ConfigDirectory -name $MediaTrackingFileName -type "file" -value $script:State.ExistingJson > $null
     }
     else {
         $script:State = Get-MigratedMediaTrackingState -MediaTrackingFileFullName $MediaTrackingFileFullName -CurrentVersion $CurrentVersion -ConversionSettings $ConversionSettings

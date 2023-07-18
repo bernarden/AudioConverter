@@ -89,7 +89,7 @@ function Convert-File {
     if ($ConversionResult.ExitCode) {
         Write-Host ("Failed to convert file: '$File'" | Add-Timestamp);
         Write-Host ($ConversionResult.Output | Add-Timestamp);
-        Remove-Item -Path $NewFileName -Force -ErrorAction Ignore
+        Remove-Item -LiteralPath $NewFileName -Force -ErrorAction Ignore
         Send-TranscodingFailureEmail -File $File -AnalyzedAudioStreams $AnalyzedAudioStreams -AudioCodecDestination $DirectoryConversionSetting.To -Logs $ConversionResult.Output
         Write-Host ("-------------------------" | Add-Timestamp);
         return;
@@ -97,8 +97,8 @@ function Convert-File {
  
     $File.Refresh();
     if ($OriginalFileLength -eq $File.Length -and $OriginalFileLastWriteTimeUtc -eq $File.LastWriteTimeUtc) {
-        Remove-Item -Path $File -Force
-        Rename-Item -Path $NewFileName -NewName $File.Name
+        Remove-Item -LiteralPath $File -Force
+        Rename-Item -LiteralPath $NewFileName -NewName $File.Name
         $File.Refresh();
         $AnalyzedMediaFile = Get-AnalyzedMediaFile -File $File -AudioCodecsToConvert $DirectoryConversionSetting.From
         $NewAudioCodecs = @($AnalyzedMediaFile.AudioStreams | Select-Object -ExpandProperty CodecName);
@@ -107,7 +107,7 @@ function Convert-File {
         Write-Host ("-------------------------" | Add-Timestamp);
     }
     else { 
-        Remove-Item -Path $NewFileName -Force
+        Remove-Item -LiteralPath $NewFileName -Force
         Write-Host ("File has been changed during conversion. Try again next time." | Add-Timestamp);
         Write-Host( "-------------------------" | Add-Timestamp);
     }

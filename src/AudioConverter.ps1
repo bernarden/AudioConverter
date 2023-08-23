@@ -17,7 +17,7 @@ function Get-FilesToConvert {
         [Parameter(Mandatory = $true)]
         [DirectoryConversionSetting] $DirectoryConversionSetting
     )   
-    Write-Host ("Filterting out files that do not require conversion." | Add-Timestamp);
+    Write-Host ("Filtering out files that do not require conversion." | Add-Timestamp);
     $FilesToConvert = [System.Collections.Concurrent.ConcurrentDictionary[System.IO.FileInfo, AnalyzedMediaFile]]::new()
     $FilesToMarkAsChecked = [System.Collections.Concurrent.ConcurrentDictionary[System.IO.FileInfo, AnalyzedMediaFile]]::new()
     $FilesToCheck | ForEach-Object -ThrottleLimit 2048 -Parallel {
@@ -25,7 +25,7 @@ function Get-FilesToConvert {
         $FilesToMarkAsChecked = $using:FilesToMarkAsChecked
         $DirectoryConversionSetting = $using:DirectoryConversionSetting
 
-        # Hack to load all modules into new PS runspace state. https://github.com/PowerShell/PowerShell/issues/12240
+        # Hack to load all modules into new PS run-space state. https://github.com/PowerShell/PowerShell/issues/12240
         $ScriptRoot = $using:PSScriptRoot
         $scriptBody = @"
 using module "$ScriptRoot\classes\AnalyzedMediaFileClass.psm1"
@@ -34,7 +34,7 @@ using module "$ScriptRoot\OutputHelper.psm1"
 "@;
         $script = [ScriptBlock]::Create($scriptBody)
         . $script
-       
+    
         try {
             $File = $_;
             $AnalyzedMediaFile = Get-AnalyzedMediaFile -File $File -AudioCodecsToConvert $DirectoryConversionSetting.From
@@ -52,7 +52,7 @@ using module "$ScriptRoot\OutputHelper.psm1"
             }
         }
         catch { 
-            Write-Host ($_.Exception | Add-Timestamp);
+            Write-Host ("Failed to check if the file requires a conversion: '$File'.`n" + $_.Exception.ToString() | Add-Timestamp);
         }
     }
     

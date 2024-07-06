@@ -1,4 +1,4 @@
-using module ".\dlls\BouncyCastle.Crypto.dll"
+using module ".\dlls\BouncyCastle.Cryptography.dll"
 using module ".\dlls\MimeKit.dll"
 using module ".\dlls\MailKit.dll"
 using module ".\classes\AnalyzedMediaFileClass.psm1"
@@ -22,23 +22,24 @@ function Initialize-EmailRepository {
     }
     
     if ($script:EmailSettings.SendTestEmailOnStart) {
-        Write-Host ("Sending test email." | Add-Timestamp);
         Send-TestEmail
-        Write-Host ("Test email has been sent." | Add-Timestamp);
     }
 }
 
 function Send-TestEmail {
     try {
+        Write-Host ("Sending test email." | Add-Timestamp);
         $BodyBuilder = New-Object MimeKit.BodyBuilder;
         $BodyBuilder.HtmlBody = "<b>This is a test email.</b>";
         $Body = $BodyBuilder.ToMessageBody();
 
         $Message = New-Message -FromEmailAddress $script:EmailSettings.Sender -ToEmailAddresses $script:EmailSettings.To -Subject "[AudioConverter] Test" -Body $Body
         Send-Email -UserName $script:EmailSettings.Username -Password $script:EmailSettings.Password -Message $Message -SmtpServer $script:EmailSettings.Host -SmtpPort $script:EmailSettings.Port
+        Write-Host ("Test email has been sent." | Add-Timestamp);
     }
     catch { 
         Write-Host ($_.Exception | Add-Timestamp);
+        Write-Host ("Failed to send a test email." | Add-Timestamp);
     }
 }
 
@@ -167,11 +168,11 @@ function New-Message {
     $Message.Subject = $Subject;
     $Message.Body = $Body
 
-    $From = New-Object MimeKit.MailboxAddress $FromEmailAddress
+    $From = New-Object MimeKit.MailboxAddress -ArgumentList "Audio Converter", $FromEmailAddress
     $Message.From.Add($From);
 
     ForEach ($ToEmailAddress in $ToEmailAddresses) {
-        $To = New-Object MimeKit.MailboxAddress $ToEmailAddress
+        $To = New-Object MimeKit.MailboxAddress -ArgumentList $ToEmailAddress, $ToEmailAddress
         $Message.To.Add($To);
     }
 

@@ -1,9 +1,9 @@
-ARG FFMPEG_VERSION=6.0-ubuntu2004
+ARG FFMPEG_VERSION=7.0-ubuntu2204
 FROM jrottenberg/ffmpeg:${FFMPEG_VERSION} AS base
 
 RUN apt-get update \
   && apt-get install --no-install-recommends --no-install-suggests -y wget apt-transport-https software-properties-common \
-  && wget -q https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb \
+  && wget -q https://packages.microsoft.com/config/ubuntu/22.04/packages-microsoft-prod.deb \
   && dpkg -i packages-microsoft-prod.deb \
   && rm packages-microsoft-prod.deb \
   && apt-get update \

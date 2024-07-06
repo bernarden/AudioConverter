@@ -153,7 +153,7 @@ function Main {
     }
 
     $ConfigDirectory = "config"
-    $CurrentScriptVersion = "2.0.0"
+    $CurrentScriptVersion = "2.1.0"
     New-DirectoryIfDoesNotExist -DirectoryPath $ConfigDirectory
     
     Initialize-SettingsRepository -ConfigDirectory $ConfigDirectory 

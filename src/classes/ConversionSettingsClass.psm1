@@ -7,4 +7,5 @@ class DirectoryConversionSetting {
     [string] $Path
     [string[]] $From
     [string] $To
+    [string[]] $Excluded
 }

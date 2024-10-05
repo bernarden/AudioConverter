@@ -1,4 +1,5 @@
 using module ".\classes\AnalyzedMediaFileClass.psm1"
+using module ".\classes\ConversionSettingsClass.psm1"
 
 function Get-AnalyzedMediaFile {
     Param(
@@ -6,20 +7,22 @@ function Get-AnalyzedMediaFile {
         [System.IO.FileInfo] $File,
 
         [Parameter(Mandatory = $true)]
-        [string[]] $AudioCodecsToConvert
+        [DirectoryConversionSetting] $DirectoryConversionSetting
     )
+    $IsFilePathExcluded = Get-IsFilePathExcluded -FileFullName $File.FullName -DirectoryConversionSetting $DirectoryConversionSetting
 
     $MediaFileInfo = ffprobe -v quiet -print_format json -show_format -show_streams "$File" | ConvertFrom-Json
     if (!$MediaFileInfo -or !$MediaFileInfo.streams -or !$MediaFileInfo.format) {
         $AnalyzedMediaFile = [AnalyzedMediaFile]@{
-            FileName     = $File.Name
-            Duration     = "N/A"
-            Bitrate      = "N/A"
-            Size         = $File.Length
-            VideoStreams = @()
-            AudioStreams = @()
-            SubtitleStreams = @()
-            IsMediaFile  = $false
+            FileName           = $File.Name
+            Duration           = "N/A"
+            Bitrate            = "N/A"
+            Size               = $File.Length
+            VideoStreams       = @()
+            AudioStreams       = @()
+            SubtitleStreams    = @()
+            IsMediaFile        = $false
+            IsFilePathExcluded = $IsFilePathExcluded
         }
         return $AnalyzedMediaFile;
     }
@@ -44,7 +47,7 @@ function Get-AnalyzedMediaFile {
             FileStreamIndex   = $AudioSteam.index
             AudioStreamIndex  = $StreamIndex++ 
             CodecName         = $AudioSteam.codec_name
-            ShouldBeConverted = Get-IsConversionRequired $AudioSteam.codec_name $AudioCodecsToConvert
+            ShouldBeConverted = Get-IsConversionRequired $AudioSteam.codec_name $DirectoryConversionSetting.From
         };
         $AnalyzedAudioStreams += $AnalyzedAudioStream;
     }
@@ -61,16 +64,39 @@ function Get-AnalyzedMediaFile {
     }
 
     $AnalyzedMediaFile = [AnalyzedMediaFile]@{
-        FileName        = $File.Name
-        Duration        = $MediaFileInfo.format.duration ? $MediaFileInfo.format.duration : "N/A"
-        Bitrate         = $MediaFileInfo.format.bit_rate ? $MediaFileInfo.format.bit_rate : "N/A"
-        Size            = $File.Length
-        VideoStreams    = $AnalyzedVideoStreams
-        AudioStreams    = $AnalyzedAudioStreams
-        SubtitleStreams = $AnalyzedSubtitleStreams
-        IsMediaFile     = $true
+        FileName           = $File.Name
+        Duration           = $MediaFileInfo.format.duration ? $MediaFileInfo.format.duration : "N/A"
+        Bitrate            = $MediaFileInfo.format.bit_rate ? $MediaFileInfo.format.bit_rate : "N/A"
+        Size               = $File.Length
+        VideoStreams       = $AnalyzedVideoStreams
+        AudioStreams       = $AnalyzedAudioStreams
+        SubtitleStreams    = $AnalyzedSubtitleStreams
+        IsMediaFile        = $true
+        IsFilePathExcluded = $IsFilePathExcluded
     }
     return $AnalyzedMediaFile;
+}
+
+function Get-IsFilePathExcluded {
+    Param(
+        [Parameter(Mandatory = $true)]
+        [string] $FileFullName,
+
+        [Parameter(Mandatory = $true)]
+        [DirectoryConversionSetting] $DirectoryConversionSetting
+    )
+    foreach ($ExcludedPathPattern in $DirectoryConversionSetting.Excluded) {
+        if ([System.IO.Path]::DirectorySeparatorChar -eq "\") {
+            $ExcludedFullPathPattern = $DirectoryConversionSetting.Path.TrimEnd('\').Replace("\", "\\") + "\\" + $ExcludedPathPattern.TrimStart('\');
+        }
+        else {
+            $ExcludedFullPathPattern = $DirectoryConversionSetting.Path.TrimEnd('/') + "/" + $ExcludedPathPattern.TrimStart('/');
+        }
+        
+        if ($FileFullName -match $ExcludedFullPathPattern) { return $true; }
+    }
+
+    return $false;
 }
 
 function Get-IsConversionRequired {
@@ -126,4 +152,4 @@ function Convert-AudioStreams {
     }
 }
 
-Export-ModuleMember -Function Get-AnalyzedMediaFile, Get-IsConversionRequired, Convert-AudioStreams
+Export-ModuleMember -Function Get-AnalyzedMediaFile, Get-IsConversionRequired, Get-IsFilePathExcluded, Convert-AudioStreams

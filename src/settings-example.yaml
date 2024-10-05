@@ -5,6 +5,9 @@ settings:
         - path: /media/folder1
           from: eac3
           to: ac3
+          excluded:
+            - innerFolder1/file1.mp4
+            - file2.mp4
         - path: /media/folder2
           from:
             - truehd

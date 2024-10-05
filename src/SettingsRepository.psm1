@@ -42,9 +42,10 @@ function Initialize-SettingsRepository {
     $Directories = @()
     ForEach ($Directory in $ConversionSettingsTemp.Directories) {
         $DirectoryConversionSetting = [DirectoryConversionSetting]@{
-            Path = $Directory.Path
-            From = $Directory.From
-            To   = $Directory.To
+            Path     = $Directory.Path
+            From     = $Directory.From
+            To       = $Directory.To
+            Excluded = $Directory.Excluded
         };
 
         if ($Directory.From -contains $Directory.To) {

@@ -160,13 +160,12 @@ function Remove-TrackedMediaFilesThatRequireConversion {
     Write-Host ("Checking if any previously tracked files require a conversion." | Add-Timestamp);
     ForEach ($DirectoryCheckedFiles in $script:State.Existing.CheckedFiles.GetEnumerator()) {
         $MatchingSetting = $ConversionSettings.Directories | Where-Object { $_.Path -eq $DirectoryCheckedFiles.Name }
-        if (!$MatchingSetting) {
-            Continue
-        }
-
+        if (!$MatchingSetting) { continue; }
+        
         ForEach ($CheckedFile in $DirectoryCheckedFiles.Value) {
+            $IsFilePathExcluded = Get-IsFilePathExcluded -FileFullName $CheckedFile.FullName -DirectoryConversionSetting $MatchingSetting
             $IsConversionRequired = Get-IsConversionRequired $CheckedFile.AudioCodecs $MatchingSetting.From
-            if (!$IsConversionRequired) {
+            if ($IsFilePathExcluded -or !$IsConversionRequired) {
                 $script:State.New.CheckedFiles[$DirectoryCheckedFiles.Name] += $CheckedFile
             }
         }      

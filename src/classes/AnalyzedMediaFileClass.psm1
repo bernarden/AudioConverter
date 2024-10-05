@@ -25,4 +25,5 @@ class AnalyzedMediaFile {
     [AnalyzedAudioStream[]] $AudioStreams
     [AnalyzedSubtitleStream[]] $SubtitleStreams
     [boolean] $IsMediaFile
+    [boolean] $IsFilePathExcluded
 }

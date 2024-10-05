@@ -17,7 +17,7 @@ function Get-FilesToConvert {
         [Parameter(Mandatory = $true)]
         [DirectoryConversionSetting] $DirectoryConversionSetting
     )   
-    Write-Host ("Filtering out files that do not require conversion." | Add-Timestamp);
+    Write-Host ("Filtering out files that do not require conversion or excluded." | Add-Timestamp);
     $FilesToConvert = [System.Collections.Concurrent.ConcurrentDictionary[System.IO.FileInfo, AnalyzedMediaFile]]::new()
     $FilesToMarkAsChecked = [System.Collections.Concurrent.ConcurrentDictionary[System.IO.FileInfo, AnalyzedMediaFile]]::new()
     $FilesToCheck | ForEach-Object -ThrottleLimit 2048 -Parallel {
@@ -37,12 +37,12 @@ using module "$ScriptRoot\OutputHelper.psm1"
     
         try {
             $File = $_;
-            $AnalyzedMediaFile = Get-AnalyzedMediaFile -File $File -AudioCodecsToConvert $DirectoryConversionSetting.From
+            $AnalyzedMediaFile = Get-AnalyzedMediaFile -File $File -DirectoryConversionSetting $DirectoryConversionSetting
 
             $NumberOfAudioStreamsToConvert = ($AnalyzedMediaFile.AudioStreams | Where-Object { $_.ShouldBeConverted } | Measure-Object).Count
-            if ($NumberOfAudioStreamsToConvert -eq 0) {
+            if (($NumberOfAudioStreamsToConvert -eq 0) -or $AnalyzedMediaFile.IsFilePathExcluded) {
                 if ($FilesToMarkAsChecked.TryAdd($File, $AnalyzedMediaFile) -eq $false) {
-                    throw [System.Exception] "Failed mark file '$($File.Name)' as checked."
+                    throw [System.Exception] "Failed to mark file '$($File.Name)' as checked."
                 }
             }
             else {
@@ -100,7 +100,7 @@ function Convert-File {
         Remove-Item -LiteralPath $File -Force
         Rename-Item -LiteralPath $NewFileName -NewName $File.Name
         $File.Refresh();
-        $AnalyzedMediaFile = Get-AnalyzedMediaFile -File $File -AudioCodecsToConvert $DirectoryConversionSetting.From
+        $AnalyzedMediaFile = Get-AnalyzedMediaFile -File $File -DirectoryConversionSetting $DirectoryConversionSetting
         $NewAudioCodecs = @($AnalyzedMediaFile.AudioStreams | Select-Object -ExpandProperty CodecName);
         Set-FileAsScannedOrConverted $File $AnalyzedMediaFile.Duration $NewAudioCodecs $DirectoryConversionSetting
         Write-Host ("File has been converted." | Add-Timestamp);
@@ -153,7 +153,7 @@ function Main {
     }
 
     $ConfigDirectory = "config"
-    $CurrentScriptVersion = "2.1.0"
+    $CurrentScriptVersion = "2.2.0"
     New-DirectoryIfDoesNotExist -DirectoryPath $ConfigDirectory
     
     Initialize-SettingsRepository -ConfigDirectory $ConfigDirectory 

@@ -153,7 +153,7 @@ function Main {
     }
 
     $ConfigDirectory = "config"
-    $CurrentScriptVersion = "2.2.0"
+    $CurrentScriptVersion = "2.3.0"
     New-DirectoryIfDoesNotExist -DirectoryPath $ConfigDirectory
     
     Initialize-SettingsRepository -ConfigDirectory $ConfigDirectory 
@@ -165,6 +165,8 @@ function Main {
     Initialize-EmailRepository -EmailSettings $EmailSettings
 
     while ($true) {
+        Initialize-LatestSettingFile -ConfigDirectory $ConfigDirectory 
+
         Write-Host ("-------------------------" | Add-Timestamp);
         ForEach ($DirectoryConversionSetting in $ConversionSettings.Directories) {
             $FilesToCheck = Get-FilesToCheck -DirectoryPath $DirectoryConversionSetting.Path

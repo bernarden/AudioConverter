@@ -24,8 +24,11 @@ function Initialize-SettingsRepository {
     }
 
     $script:Settings = Get-Content -Path $SettingsFilePath | ConvertFrom-Yaml
+    Set-EmailSettings
+    Set-ConversionSettings
+}
 
-    # Email Settings
+function Set-EmailSettings {
     $EmailSettingsTemp = $script:Settings.Settings.Email
     $script:EmailSettings = [EmailSettings]@{
         Host                 = $EmailSettingsTemp.Host
@@ -36,8 +39,9 @@ function Initialize-SettingsRepository {
         Password             = Get-StringEnvVariable -Name "EMAIL_PASSWORD" -DefaultValue $EmailSettingsTemp.Password
         SendTestEmailOnStart = $EmailSettingsTemp.Send_test_email_on_start
     };
+}
 
-    # Conversion Settings
+function Set-ConversionSettings {
     $ConversionSettingsTemp = $script:Settings.Settings.Conversion
     $Directories = @()
     ForEach ($Directory in $ConversionSettingsTemp.Directories) {
@@ -62,6 +66,16 @@ function Initialize-SettingsRepository {
     };
 }
 
+function Initialize-LatestSettingFile {
+    Param(
+        [Parameter(Mandatory = $true)]
+        [String] $ConfigDirectory
+    )
+
+    Initialize-SettingsRepository -ConfigDirectory $ConfigDirectory 
+}
+
+
 function Get-EmailSettings {
     [OutputType([EmailSettings])]
     param ()
@@ -76,4 +90,4 @@ function Get-ConversionSettings {
     return $script:ConversionSettings
 }
 
-Export-ModuleMember -Function Initialize-SettingsRepository, Get-EmailSettings, Get-ConversionSettings
+Export-ModuleMember -Function Initialize-SettingsRepository, Initialize-LatestSettingFile, Get-EmailSettings, Get-ConversionSettings
